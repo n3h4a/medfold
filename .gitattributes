@@ -1,0 +1,4 @@
+# Keep wrapper scripts runnable on every OS
+mvnw text eol=lf
+*.sh text eol=lf
+*.cmd text eol=crlf
