@@ -2,6 +2,8 @@
 
 Upload once. Find everything. Understand your medical history.
 
+Architecture and current status: [docs/architecture.md](docs/architecture.md)
+
 ## Prerequisites
 
 - Docker (with Compose)
