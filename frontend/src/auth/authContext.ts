@@ -3,7 +3,7 @@ import type { LoginRequest, RegisterRequest, User } from '../api/auth.ts'
 
 export type AuthState =
   | { status: 'loading'; user: null }
-  | { status: 'anonymous'; user: null }
+  | { status: 'anonymous'; user: null; reason?: 'expired' }
   | { status: 'authenticated'; user: User }
 
 export interface AuthContextValue {

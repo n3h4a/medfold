@@ -1,6 +1,7 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import { authApi } from '../api/auth.ts'
 import { getAccessToken } from '../api/client.ts'
 import { authResponse, demoUser, health, json, mockApi, noSession } from '../test/mockApi.ts'
 import { renderApp } from '../test/renderApp.tsx'
@@ -157,5 +158,52 @@ describe('logout', () => {
     expect(router.state.location.pathname).toBe('/login')
     expect(getAccessToken()).toBeNull()
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/auth/logout'))).toBe(true)
+  })
+})
+
+describe('expired access token', () => {
+  const invalidToken = () =>
+    json(401, { status: 401, code: 'INVALID_TOKEN', message: 'Access token is invalid or expired' })
+
+  it('refreshes once for many parallel requests and keeps the user logged in', async () => {
+    let refreshCount = 0
+    const fetchMock = mockApi({
+      'POST /auth/refresh': () => {
+        refreshCount += 1
+        // Page load gets token 1; the recovery refresh gets token 2.
+        return json(200, { ...authResponse(), accessToken: `access-token-${refreshCount}` })
+      },
+      'GET /auth/me': (init) =>
+        new Headers(init?.headers).get('Authorization') === 'Bearer access-token-2'
+          ? json(200, demoUser)
+          : invalidToken(),
+      'GET /health': health,
+    })
+    renderApp('/')
+    await screen.findByRole('heading', { name: 'Welcome, Asha Rao' })
+
+    const results = await act(() => Promise.all([authApi.me(), authApi.me(), authApi.me()]))
+
+    expect(results.map((user) => user.email)).toEqual([demoUser.email, demoUser.email, demoUser.email])
+    const refreshCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/auth/refresh'))
+    expect(refreshCalls).toHaveLength(2)
+    expect(screen.getByRole('heading', { name: 'Welcome, Asha Rao' })).toBeInTheDocument()
+  })
+
+  it('returns to login with a message when the session has ended', async () => {
+    let refreshCount = 0
+    mockApi({
+      'POST /auth/refresh': () => (++refreshCount === 1 ? json(200, authResponse()) : noSession()),
+      'GET /auth/me': invalidToken,
+      'GET /health': health,
+    })
+    const { router } = renderApp('/')
+    await screen.findByRole('heading', { name: 'Welcome, Asha Rao' })
+
+    await act(() => authApi.me().catch(() => undefined))
+
+    expect(await screen.findByText('Your session has expired. Please log in again.')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/login')
+    expect(getAccessToken()).toBeNull()
   })
 })

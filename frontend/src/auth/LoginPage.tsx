@@ -6,7 +6,8 @@ import { errorMessage, fieldErrors } from './errors.ts'
 import { useAuth } from './useAuth.ts'
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { state, login } = useAuth()
+  const sessionExpired = state.status === 'anonymous' && state.reason === 'expired'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -31,6 +32,11 @@ export function LoginPage() {
   return (
     <AuthCard title="Log in to Medfold" subtitle="Your medical records, organized in one private place.">
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {sessionExpired && !error && (
+          <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Your session has expired. Please log in again.
+          </div>
+        )}
         <FormError message={error && Object.keys(fields).length === 0 ? errorMessage(error) : null} />
         <TextField
           label="Email"

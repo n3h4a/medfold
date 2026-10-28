@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { authApi, type AuthResponse, type LoginRequest, type RegisterRequest } from '../api/auth.ts'
-import { setAccessToken } from '../api/client.ts'
+import { setAccessToken, setSessionHandlers } from '../api/client.ts'
 import { AuthContext, type AuthContextValue, type AuthState } from './authContext.ts'
 import { refreshSession } from './session.ts'
 
@@ -24,6 +24,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false
     }
   }, [])
+
+  // Let the API client refresh expired access tokens and end the session when that fails.
+  useEffect(() => {
+    setSessionHandlers({
+      refresh: async () => {
+        const session = await refreshSession()
+        if (session) setState({ status: 'authenticated', user: session.user })
+        return session !== null
+      },
+      onSessionExpired: () => {
+        setAccessToken(null)
+        queryClient.clear()
+        setState((current) =>
+          current.status === 'authenticated' ? { status: 'anonymous', user: null, reason: 'expired' } : current,
+        )
+      },
+    })
+    return () => setSessionHandlers(null)
+  }, [queryClient])
 
   const startSession = useCallback((response: AuthResponse) => {
     setAccessToken(response.accessToken)
