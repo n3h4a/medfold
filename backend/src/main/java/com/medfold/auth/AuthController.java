@@ -1,6 +1,9 @@
 package com.medfold.auth;
 
+import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.medfold.auth.dto.AuthResponse;
 import com.medfold.auth.dto.LoginRequest;
 import com.medfold.auth.dto.RegisterRequest;
+import com.medfold.user.dto.UserResponse;
 
 import jakarta.validation.Valid;
 
@@ -32,5 +36,10 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @GetMapping("/me")
+    public UserResponse me(@CurrentUserId UUID userId) {
+        return authService.currentUser(userId);
     }
 }

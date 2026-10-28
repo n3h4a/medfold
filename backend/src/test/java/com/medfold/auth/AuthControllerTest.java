@@ -153,7 +153,9 @@ class AuthControllerTest {
 
     @Test
     void otherEndpointsRequireAuthentication() throws Exception {
-        mockMvc.perform(get("/api/v1/documents")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/documents"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
 
     @Test

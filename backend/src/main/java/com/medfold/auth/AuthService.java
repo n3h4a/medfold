@@ -2,6 +2,7 @@ package com.medfold.auth;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -71,6 +72,14 @@ public class AuthService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email or password is incorrect");
         }
         return issueTokens(user.get());
+    }
+
+    /** The account behind a valid token. A deleted account is treated as logged out. */
+    @Transactional(readOnly = true)
+    public UserResponse currentUser(UUID userId) {
+        return userRepository.findById(userId)
+                .map(UserResponse::from)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Authentication required"));
     }
 
     private AuthResponse issueTokens(User user) {
