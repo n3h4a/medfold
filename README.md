@@ -6,6 +6,7 @@ Upload once. Find everything. Understand your medical history.
 
 - Docker (with Compose)
 - JDK 21
+- Node.js 20+
 - Python 3.12+ and Tesseract OCR (only to run the AI service outside Docker)
 
 ## Run locally
@@ -44,6 +45,16 @@ uvicorn app.main:app --reload --port 8000
 
 Check it: `curl http://localhost:8000/health` — API docs at http://localhost:8000/docs
 
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. API calls to `/api` are proxied to the backend on port 8080.
+
 ## Tests
 
 ```bash
@@ -56,4 +67,9 @@ Backend tests start a throwaway PostgreSQL container, so Docker must be running.
 ```bash
 cd ai-service
 pytest
+```
+
+```bash
+cd frontend
+npm test
 ```
