@@ -9,14 +9,21 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.medfold.common.ApiException;
+import com.medfold.common.PageResponse;
 import com.medfold.document.dto.DocumentResponse;
+import com.medfold.document.dto.DocumentStatusResponse;
 import com.medfold.storage.StorageService;
 import com.medfold.storage.StoredFile;
 
@@ -25,6 +32,7 @@ public class DocumentService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
     private static final int MAX_FILENAME_LENGTH = 255;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final DocumentRepository documentRepository;
     private final StorageService storageService;
@@ -72,6 +80,61 @@ public class DocumentService {
             storageService.delete(stored.key());
             throw ex;
         }
+    }
+
+    /** The user's documents in timeline order. Page size is capped so one request can't load everything. */
+    @Transactional(readOnly = true)
+    public PageResponse<DocumentResponse> list(UUID userId, int page, int size) {
+        PageRequest pageRequest = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE));
+        return PageResponse.from(documentRepository.findTimeline(userId, pageRequest), DocumentResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentResponse get(UUID userId, UUID documentId) {
+        return DocumentResponse.from(findOwned(userId, documentId));
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentStatusResponse status(UUID userId, UUID documentId) {
+        return DocumentStatusResponse.from(findOwned(userId, documentId));
+    }
+
+    public record DocumentFile(Resource resource, String mimeType, String filename) {
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentFile file(UUID userId, UUID documentId) {
+        Document document = findOwned(userId, documentId);
+        return new DocumentFile(storageService.load(document.getStorageKey()), document.getMimeType(),
+                document.getOriginalFilename());
+    }
+
+    /**
+     * Deletes the row, and the file only once that delete has committed. If removing the file
+     * then fails, the document is still gone for the user and the orphan file is logged, rather
+     * than leaving a row that points to a missing file.
+     */
+    @Transactional
+    public void delete(UUID userId, UUID documentId) {
+        Document document = findOwned(userId, documentId);
+        documentRepository.delete(document);
+        String storageKey = document.getStorageKey();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    storageService.delete(storageKey);
+                } catch (RuntimeException ex) {
+                    log.error("Document {} deleted but its file could not be removed", documentId, ex);
+                }
+            }
+        });
+    }
+
+    /** Someone else's document and a non-existent one look identical: 404 either way. */
+    private Document findOwned(UUID userId, UUID documentId) {
+        return documentRepository.findByIdAndUserId(documentId, userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "DOCUMENT_NOT_FOUND", "Document not found"));
     }
 
     private static DetectedFileType detectType(MultipartFile file) {
