@@ -19,5 +19,16 @@ services:
       timeout: 5s
       retries: 10
 
+  ai-service:
+    build: ./ai-service
+    container_name: medfold-ai
+    restart: unless-stopped
+    environment:
+      AI_INTERNAL_KEY: ${AI_INTERNAL_KEY}
+      OCR_PROVIDER: ${OCR_PROVIDER:-tesseract}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+    ports:
+      - "${AI_SERVICE_PORT:-8000}:8000"
+
 volumes:
   medfold_pgdata:

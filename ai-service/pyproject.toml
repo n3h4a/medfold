@@ -1,0 +1,26 @@
+[project]
+name = "medfold-ai-service"
+version = "0.1.0"
+description = "Medfold internal AI service: OCR and structured extraction"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.162,<1.0",
+    "uvicorn[standard]>=0.54,<1.0",
+    "pydantic-settings>=2.16,<3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.2,<10.0",
+    "httpx2>=2.16,<3.0",
+]
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
