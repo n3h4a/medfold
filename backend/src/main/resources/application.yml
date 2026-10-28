@@ -33,6 +33,10 @@ medfold:
     # Must be true in production (HTTPS). Set false only for plain-HTTP local development.
     cookie-secure: ${REFRESH_COOKIE_SECURE:true}
 
+  storage:
+    # Local folder for uploaded files (relative to backend/). Swapped for object storage in production.
+    root: ${STORAGE_ROOT:../data/uploads}
+
 management:
   endpoints:
     web:
