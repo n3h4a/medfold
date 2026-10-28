@@ -1,10 +1,11 @@
 # Reads the repo-root .env when running from backend/ (e.g. ./mvnw spring-boot:run).
-# Real environment variables always take precedence.
+# Real environment variables always take precedence. Tests point MEDFOLD_ENV_FILE elsewhere
+# (see pom.xml) so a developer's local .env can never change test behaviour.
 spring:
   application:
     name: medfold-backend
   config:
-    import: optional:file:../.env[.properties]
+    import: optional:file:${MEDFOLD_ENV_FILE:../.env}[.properties]
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:medfold}
     username: ${POSTGRES_USER:medfold}

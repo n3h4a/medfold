@@ -27,7 +27,7 @@ class HealthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.database").value("UP"))
-                .andExpect(jsonPath("$.schemaVersion").value("2"));
+                .andExpect(jsonPath("$.schemaVersion").value("3"));
     }
 
     @Test
