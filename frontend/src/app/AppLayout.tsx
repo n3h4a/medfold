@@ -7,7 +7,7 @@ export function AppLayout() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-4 px-4">
           <Link to="/" className="text-lg font-semibold text-brand-700">
             Medfold
           </Link>
@@ -25,9 +25,17 @@ export function AppLayout() {
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="mx-auto max-w-3xl px-4 py-8">
         <Outlet />
       </main>
+      {state.status === 'authenticated' && (
+        <footer className="mx-auto max-w-3xl px-4 pb-8 text-center text-xs text-slate-500">
+          Medfold organizes your records. It does not give medical advice. ·{' '}
+          <Link to="/status" className="hover:underline">
+            System status
+          </Link>
+        </footer>
+      )}
     </div>
   )
 }

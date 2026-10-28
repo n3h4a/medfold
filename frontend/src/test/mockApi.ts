@@ -9,14 +9,23 @@ export function json(status: number, body?: unknown): Response {
   })
 }
 
+export const emptyPage = { items: [], page: 0, size: 50, totalItems: 0, totalPages: 0 }
+
+/** Requests every logged-in page makes; tests override them when they care. */
+const defaultHandlers: Record<string, Handler> = {
+  'GET /documents': () => json(200, emptyPage),
+  'GET /health': () => json(200, { service: 'medfold-backend', status: 'UP', database: 'UP', schemaVersion: '3' }),
+}
+
 /**
- * Stubs fetch with handlers keyed by "METHOD /path" (path without the /api/v1 prefix).
+ * Stubs fetch with handlers keyed by "METHOD /path" (path without the /api/v1 prefix and query string).
  * Unmatched requests get a 404 so a missing handler fails loudly.
  */
-export function mockApi(handlers: Record<string, Handler>) {
+export function mockApi(overrides: Record<string, Handler>) {
+  const handlers = { ...defaultHandlers, ...overrides }
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-    const path = url.replace(/^.*\/api\/v1/, '')
+    const path = url.replace(/^.*\/api\/v1/, '').split('?')[0]
     const key = `${init?.method ?? 'GET'} ${path}`
     const handler = handlers[key]
     return handler ? handler(init) : json(404, { status: 404, code: 'NOT_FOUND', message: `No mock for ${key}` })

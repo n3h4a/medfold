@@ -22,7 +22,7 @@ describe('session restore', () => {
 
     renderApp('/')
 
-    expect(await screen.findByRole('heading', { name: 'Welcome, Asha Rao' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Your documents' })).toBeInTheDocument()
     expect(screen.getByText(demoUser.email)).toBeInTheDocument()
     expect(getAccessToken()).toBe('access-token-1')
   })
@@ -59,7 +59,7 @@ describe('login', () => {
     await user.type(screen.getByLabelText('Password'), 'correct-horse-battery')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
 
-    expect(await screen.findByRole('heading', { name: 'Welcome, Asha Rao' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Your documents' })).toBeInTheDocument()
     expect(router.state.location.pathname + router.state.location.search).toBe('/?tab=labs')
     const loginCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/auth/login'))
     expect(JSON.parse(String(loginCall?.[1]?.body))).toEqual({
@@ -138,7 +138,7 @@ describe('register', () => {
     await user.type(screen.getByLabelText('Password'), 'correct-horse-battery')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
-    expect(await screen.findByRole('heading', { name: 'Welcome, New Person' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Your documents' })).toBeInTheDocument()
   })
 })
 
@@ -180,14 +180,14 @@ describe('expired access token', () => {
       'GET /health': health,
     })
     renderApp('/')
-    await screen.findByRole('heading', { name: 'Welcome, Asha Rao' })
+    await screen.findByRole('heading', { name: 'Your documents' })
 
     const results = await act(() => Promise.all([authApi.me(), authApi.me(), authApi.me()]))
 
     expect(results.map((user) => user.email)).toEqual([demoUser.email, demoUser.email, demoUser.email])
     const refreshCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/auth/refresh'))
     expect(refreshCalls).toHaveLength(2)
-    expect(screen.getByRole('heading', { name: 'Welcome, Asha Rao' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your documents' })).toBeInTheDocument()
   })
 
   it('returns to login with a message when the session has ended', async () => {
@@ -198,7 +198,7 @@ describe('expired access token', () => {
       'GET /health': health,
     })
     const { router } = renderApp('/')
-    await screen.findByRole('heading', { name: 'Welcome, Asha Rao' })
+    await screen.findByRole('heading', { name: 'Your documents' })
 
     await act(() => authApi.me().catch(() => undefined))
 

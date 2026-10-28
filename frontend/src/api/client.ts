@@ -48,16 +48,6 @@ export function getAccessToken(): string | null {
   return accessToken
 }
 
-async function parseBody(response: Response): Promise<unknown> {
-  const text = await response.text()
-  if (!text) return null
-  try {
-    return JSON.parse(text)
-  } catch {
-    return text
-  }
-}
-
 /**
  * How the client recovers from an expired access token. Registered by AuthProvider so this
  * module does not depend on React or on the auth API (which itself uses this client).
@@ -80,17 +70,21 @@ interface RequestOptions {
   body?: unknown
 }
 
-async function send(path: string, method: string, body: unknown, token: string | null): Promise<Response> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
-  if (token) headers.Authorization = `Bearer ${token}`
+/** Status and parsed body of a finished request, independent of fetch or XMLHttpRequest. */
+export interface RawResponse {
+  status: number
+  body: unknown
+}
 
-  return fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-    credentials: 'same-origin',
-  })
+export const API_BASE = API_BASE_URL
+
+export function parseText(text: string): unknown {
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
 }
 
 function errorCode(body: unknown): string | undefined {
@@ -102,28 +96,55 @@ function isAuthEndpoint(path: string): boolean {
   return path.startsWith('/auth/') && path !== '/auth/me'
 }
 
-export async function apiRequest<T>(path: string, { method = 'GET', body }: RequestOptions = {}): Promise<T> {
+/**
+ * Runs a request and recovers from an expired access token: on 401 INVALID_TOKEN it refreshes
+ * once (shared with any parallel callers) and retries with the new token. If the session has
+ * really ended, the app is told so it can return to login.
+ *
+ * `send` performs the actual HTTP call with the given token, so fetch and XMLHttpRequest
+ * (needed for upload progress) share the same recovery rules.
+ */
+export async function withAuthRecovery(
+  path: string,
+  send: (token: string | null) => Promise<RawResponse>,
+): Promise<RawResponse> {
   const sentToken = accessToken
-  let response = await send(path, method, body, sentToken)
-  let responseBody = await parseBody(response)
+  let response = await send(sentToken)
 
   const canRecover = response.status === 401 && sentToken !== null && sessionHandlers !== null && !isAuthEndpoint(path)
-  if (canRecover && errorCode(responseBody) === 'INVALID_TOKEN') {
+  if (canRecover && errorCode(response.body) === 'INVALID_TOKEN') {
     // Another request may already have refreshed while this one was in flight.
     const refreshed = accessToken !== sentToken || (await sessionHandlers!.refresh())
     if (refreshed && accessToken) {
-      response = await send(path, method, body, accessToken)
-      responseBody = await parseBody(response)
+      response = await send(accessToken)
     }
   }
   if (canRecover && response.status === 401) {
     sessionHandlers!.onSessionExpired()
   }
+  return response
+}
 
-  if (!response.ok) {
-    throw new ApiError(response.status, responseBody)
+async function fetchRaw(path: string, method: string, body: unknown, token: string | null): Promise<RawResponse> {
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    credentials: 'same-origin',
+  })
+  return { status: response.status, body: parseText(await response.text()) }
+}
+
+export async function apiRequest<T>(path: string, { method = 'GET', body }: RequestOptions = {}): Promise<T> {
+  const response = await withAuthRecovery(path, (token) => fetchRaw(path, method, body, token))
+  if (response.status < 200 || response.status >= 300) {
+    throw new ApiError(response.status, response.body)
   }
-  return responseBody as T
+  return response.body as T
 }
 
 export function apiGet<T>(path: string): Promise<T> {
@@ -132,4 +153,8 @@ export function apiGet<T>(path: string): Promise<T> {
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: 'POST', body })
+}
+
+export function apiDelete(path: string): Promise<null> {
+  return apiRequest<null>(path, { method: 'DELETE' })
 }
