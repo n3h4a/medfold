@@ -10,6 +10,11 @@ spring:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:medfold}
     username: ${POSTGRES_USER:medfold}
     password: ${POSTGRES_PASSWORD:change_me}
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      # A little above the file limit to leave room for multipart headers.
+      max-request-size: 11MB
   jpa:
     open-in-view: false
     hibernate:
@@ -20,6 +25,10 @@ spring:
 
 server:
   port: ${BACKEND_PORT:8080}
+  tomcat:
+    # Read (and discard) oversized uploads up to this size so the client gets a clean 413
+    # instead of a connection reset.
+    max-swallow-size: 50MB
 
 medfold:
   jwt:
