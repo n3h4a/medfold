@@ -25,6 +25,8 @@ public class SecurityConfig {
     private static final RequestMatcher PUBLIC_ENDPOINTS = new OrRequestMatcher(
             PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/v1/auth/register"),
             PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/v1/auth/login"),
+            PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/v1/auth/refresh"),
+            PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/v1/auth/logout"),
             PathPatternRequestMatcher.pathPattern(HttpMethod.GET, "/api/v1/health"),
             PathPatternRequestMatcher.pathPattern(HttpMethod.GET, "/actuator/health"),
             PathPatternRequestMatcher.pathPattern("/error"));

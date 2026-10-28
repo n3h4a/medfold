@@ -27,6 +27,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     /**
      * Compared against when the email is unknown, so a login attempt takes about the same
@@ -34,15 +35,21 @@ public class AuthService {
      */
     private final String dummyPasswordHash;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    /** Response body plus the refresh token the controller puts in a cookie. */
+    public record AuthSession(AuthResponse body, RefreshTokenService.IssuedRefreshToken refreshToken) {
+    }
+
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
+            RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
         this.dummyPasswordHash = passwordEncoder.encode("medfold-dummy-password");
     }
 
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public AuthSession register(RegisterRequest request) {
         if (exceedsBcryptLimit(request.password())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "PASSWORD_TOO_LONG",
                     "Password must be at most 72 bytes");
@@ -58,11 +65,11 @@ public class AuthService {
             // Another request registered the same email between the check and the insert.
             throw emailTaken();
         }
-        return issueTokens(user);
+        return startSession(user);
     }
 
-    @Transactional(readOnly = true)
-    public AuthResponse login(LoginRequest request) {
+    @Transactional
+    public AuthSession login(LoginRequest request) {
         Optional<User> user = userRepository.findByEmailNormalized(request.email());
         String hash = user.map(User::getPasswordHash).orElse(dummyPasswordHash);
         boolean passwordMatches = !exceedsBcryptLimit(request.password())
@@ -71,7 +78,19 @@ public class AuthService {
         if (user.isEmpty() || !passwordMatches) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email or password is incorrect");
         }
-        return issueTokens(user.get());
+        return startSession(user.get());
+    }
+
+    /** Rotates the refresh token and issues a fresh access token. */
+    @Transactional(noRollbackFor = ApiException.class)
+    public AuthSession refresh(String rawRefreshToken) {
+        RefreshTokenService.Rotation rotation = refreshTokenService.rotate(rawRefreshToken);
+        return new AuthSession(accessTokenResponse(rotation.user()), rotation.refreshToken());
+    }
+
+    @Transactional
+    public void logout(String rawRefreshToken) {
+        refreshTokenService.revoke(rawRefreshToken);
     }
 
     /** The account behind a valid token. A deleted account is treated as logged out. */
@@ -82,7 +101,11 @@ public class AuthService {
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Authentication required"));
     }
 
-    private AuthResponse issueTokens(User user) {
+    private AuthSession startSession(User user) {
+        return new AuthSession(accessTokenResponse(user), refreshTokenService.issue(user));
+    }
+
+    private AuthResponse accessTokenResponse(User user) {
         JwtService.AccessToken token = jwtService.issueAccessToken(user);
         return AuthResponse.bearer(token.value(), token.expiresAt(), UserResponse.from(user));
     }

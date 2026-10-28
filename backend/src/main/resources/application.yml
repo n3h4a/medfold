@@ -26,6 +26,11 @@ medfold:
     secret: ${JWT_SECRET:}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
     issuer: medfold
+  refresh-token:
+    ttl: ${REFRESH_TOKEN_TTL:P7D}
+    cookie-name: medfold_refresh
+    # Must be true in production (HTTPS). Set false only for plain-HTTP local development.
+    cookie-secure: ${REFRESH_COOKIE_SECURE:true}
 
 management:
   endpoints:
