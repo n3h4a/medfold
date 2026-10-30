@@ -1,9 +1,10 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { MedicalDocument } from '../../api/documents.ts'
+import type { DocumentResults, MedicalDocument } from '../../api/documents.ts'
 import { authResponse, json, mockApi } from '../../test/mockApi.ts'
 import { renderApp } from '../../test/renderApp.tsx'
+import { polling } from './format.ts'
 
 function doc(overrides: Partial<MedicalDocument> = {}): MedicalDocument {
   return {
@@ -29,6 +30,35 @@ function doc(overrides: Partial<MedicalDocument> = {}): MedicalDocument {
 
 const loggedIn = { 'POST /auth/refresh': () => json(200, authResponse()) }
 
+const noResults: DocumentResults = { labResults: [], medications: [], terms: [] }
+
+const cbcResults: DocumentResults = {
+  labResults: [
+    {
+      id: 'lab-1', documentId: 'doc-1', testName: 'Haemoglobin', testKey: 'hemoglobin', valueText: '12.1', valueNumeric: 12.1,
+      unit: 'g/dL', refText: '13.0 - 17.0', refLow: 13, refHigh: 17, flag: 'LOW', observedOn: '2025-03-14', pageNumber: 1,
+      userEdited: false,
+    },
+    {
+      id: 'lab-2', documentId: 'doc-1', testName: 'Platelets', testKey: 'platelets', valueText: '2.5', valueNumeric: 2.5,
+      unit: 'lakh/cumm', refText: '1.5 - 4.5', refLow: 1.5, refHigh: 4.5, flag: 'NORMAL', observedOn: '2025-03-14',
+      pageNumber: 1, userEdited: false,
+    },
+    {
+      id: 'lab-3', documentId: 'doc-1', testName: 'Urine sugar', testKey: 'urine_sugar', valueText: 'Negative',
+      valueNumeric: null, unit: null, refText: null, refLow: null, refHigh: null, flag: null, observedOn: '2025-03-14',
+      pageNumber: 2, userEdited: false,
+    },
+  ],
+  medications: [
+    {
+      id: 'med-1', documentId: 'doc-1', name: 'Ferrous sulfate 200 mg', dosage: '200 mg', frequency: '1-0-0', route: null,
+      duration: '30 days', instructions: 'after food', prescribedOn: '2025-03-14', userEdited: false,
+    },
+  ],
+  terms: [{ term: 'CBC', definition: 'A common blood test that counts blood cells.' }],
+}
+
 function fileResponse(type: string) {
   return () => new Response('file-bytes', { status: 200, headers: { 'Content-Type': type } })
 }
@@ -39,6 +69,7 @@ describe('document detail page', () => {
       ...loggedIn,
       'GET /documents/doc-1': () => json(200, doc()),
       'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'GET /documents/doc-1/results': () => json(200, noResults),
     })
 
     renderApp('/documents/doc-1')
@@ -149,6 +180,7 @@ describe('document detail page', () => {
       'GET /documents': () => json(200, { items: [doc()], page: 0, size: 50, totalItems: 1, totalPages: 1 }),
       'GET /documents/doc-1': () => json(200, doc()),
       'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'GET /documents/doc-1/results': () => json(200, noResults),
     })
     const { router } = renderApp('/')
     const user = userEvent.setup()
@@ -157,5 +189,113 @@ describe('document detail page', () => {
 
     expect(router.state.location.pathname).toBe('/documents/doc-1')
     expect(await screen.findByRole('heading', { name: 'Complete Blood Count' })).toBeInTheDocument()
+  })
+
+  it('shows extracted test results compared with the printed range, medicines and terms', async () => {
+    mockApi({
+      ...loggedIn,
+      'GET /documents/doc-1': () => json(200, doc()),
+      'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'GET /documents/doc-1/results': () => json(200, cbcResults),
+    })
+
+    renderApp('/documents/doc-1')
+
+    const table = await screen.findByRole('table')
+    const rows = within(table).getAllByRole('row')
+    expect(rows).toHaveLength(4)
+    expect(within(rows[1]).getByRole('rowheader')).toHaveTextContent('Haemoglobin')
+    expect(rows[1]).toHaveTextContent('12.1g/dL')
+    expect(rows[1]).toHaveTextContent('13.0 - 17.0')
+    expect(within(rows[1]).getByText('Below printed range')).toBeInTheDocument()
+    expect(within(rows[2]).getByText('Within printed range')).toBeInTheDocument()
+    expect(rows[3]).toHaveTextContent('Negative')
+    expect(rows[3]).not.toHaveTextContent('printed range')
+    expect(screen.getByText(/not a medical judgment/)).toBeInTheDocument()
+
+    expect(screen.getByText('Ferrous sulfate 200 mg')).toBeInTheDocument()
+    expect(screen.getByText('200 mg · 1-0-0 · 30 days')).toBeInTheDocument()
+    expect(screen.getByText('after food')).toBeInTheDocument()
+    expect(screen.getByText('CBC')).toBeInTheDocument()
+    expect(screen.getByText('A common blood test that counts blood cells.')).toBeInTheDocument()
+  })
+
+  it('follows processing and shows the results once the document is ready', async () => {
+    polling.intervalMs = 20
+    let calls = 0
+    const fetchMock = mockApi({
+      ...loggedIn,
+      'GET /documents/doc-1': () => {
+        calls += 1
+        return json(200, calls < 3 ? doc({ status: 'PROCESSING', title: null, summary: null }) : doc())
+      },
+      'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'GET /documents/doc-1/results': () => json(200, cbcResults),
+    })
+
+    try {
+      renderApp('/documents/doc-1')
+
+      expect(await screen.findByText(/Reading this document/)).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: 'Complete Blood Count' })).toBeInTheDocument()
+      expect(await screen.findByText('Below printed range')).toBeInTheDocument()
+      expect(screen.queryByText(/Reading this document/)).not.toBeInTheDocument()
+
+      const settled = calls
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(calls).toBe(settled)
+      const resultCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/results'))
+      expect(resultCalls.length).toBeGreaterThan(0)
+    } finally {
+      polling.intervalMs = 3000
+    }
+  })
+
+  it('lets the user try a failed document again', async () => {
+    let reprocessed = false
+    mockApi({
+      ...loggedIn,
+      'GET /documents/doc-1': () =>
+        json(200, reprocessed
+          ? doc({ status: 'PROCESSING', failureReason: null })
+          : doc({ status: 'FAILED', failureReason: 'The AI service was unavailable. Please try again later' })),
+      'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'POST /documents/doc-1/reprocess': () => {
+        reprocessed = true
+        return json(202, { id: 'doc-1', status: 'PROCESSING', failureReason: null })
+      },
+    })
+    const user = userEvent.setup()
+    renderApp('/documents/doc-1')
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('The AI service was unavailable')
+    await user.click(within(alert).getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('Processing')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(reprocessed).toBe(true)
+  })
+
+  it('can process a ready document again after confirming', async () => {
+    const fetchMock = mockApi({
+      ...loggedIn,
+      'GET /documents/doc-1': () => json(200, doc()),
+      'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'GET /documents/doc-1/results': () => json(200, noResults),
+      'POST /documents/doc-1/reprocess': () => json(202, { id: 'doc-1', status: 'PROCESSING', failureReason: null }),
+    })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+    const user = userEvent.setup()
+    renderApp('/documents/doc-1')
+
+    const button = await screen.findByRole('button', { name: 'Process again' })
+    const reprocessCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/reprocess'))
+    await user.click(button)
+    expect(reprocessCalls()).toHaveLength(0)
+    await user.click(button)
+
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(reprocessCalls()).toHaveLength(1)
   })
 })

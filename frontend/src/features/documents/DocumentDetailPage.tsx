@@ -6,7 +6,8 @@ import { retryUnlessClientError } from '../../api/retry.ts'
 import { errorMessage } from '../../auth/errors.ts'
 import { FullPageSpinner } from '../../components/FullPageSpinner.tsx'
 import { FileViewer } from './FileViewer.tsx'
-import { displayTitle, formatBytes, formatDate, typeLabel } from './format.ts'
+import { ExtractedResults } from './ExtractedResults.tsx'
+import { displayTitle, formatBytes, formatDate, isInProgress, polling, typeLabel } from './format.ts'
 import { StatusPill } from './StatusPill.tsx'
 
 function BackLink() {
@@ -26,6 +27,20 @@ function Field({ label, value }: { label: string; value: string | null }) {
   )
 }
 
+/** Queues the document again; the page then follows its progress by polling. */
+function useReprocess(document: MedicalDocument) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => documentsApi.reprocess(document.id),
+    onSuccess: (status) => {
+      queryClient.setQueryData<MedicalDocument>(['documents', document.id], (current) =>
+        current ? { ...current, status: status.status, failureReason: status.failureReason } : current,
+      )
+      return queryClient.invalidateQueries({ queryKey: ['documents'] })
+    },
+  })
+}
+
 function DetailsPanel({ document }: { document: MedicalDocument }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -36,6 +51,7 @@ function DetailsPanel({ document }: { document: MedicalDocument }) {
       navigate('/', { replace: true })
     },
   })
+  const reprocess = useReprocess(document)
   const title = displayTitle(document)
 
   return (
@@ -74,7 +90,19 @@ function DetailsPanel({ document }: { document: MedicalDocument }) {
         )}
       </section>
 
-      <div>
+      <div className="flex flex-wrap gap-2">
+        {document.status === 'READY' && (
+          <button
+            type="button"
+            disabled={reprocess.isPending}
+            onClick={() => {
+              if (window.confirm('Read this document again? The extracted details will be replaced.')) reprocess.mutate()
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50"
+          >
+            Process again
+          </button>
+        )}
         <button
           type="button"
           disabled={remove.isPending}
@@ -85,9 +113,28 @@ function DetailsPanel({ document }: { document: MedicalDocument }) {
         >
           Delete document
         </button>
-        {remove.isError && <p className="mt-2 text-sm text-red-700">{errorMessage(remove.error)}</p>}
+        {remove.isError && <p className="w-full text-sm text-red-700">{errorMessage(remove.error)}</p>}
+        {reprocess.isError && <p className="w-full text-sm text-red-700">{errorMessage(reprocess.error)}</p>}
       </div>
     </aside>
+  )
+}
+
+function FailureNotice({ document }: { document: MedicalDocument }) {
+  const reprocess = useReprocess(document)
+  return (
+    <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+      <span>{document.failureReason ?? 'This document could not be processed.'}</span>
+      <button
+        type="button"
+        disabled={reprocess.isPending}
+        onClick={() => reprocess.mutate()}
+        className="rounded-lg border border-red-300 bg-white px-3 py-1 font-medium text-red-800 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50"
+      >
+        Try again
+      </button>
+      {reprocess.isError && <span className="w-full">{errorMessage(reprocess.error)}</span>}
+    </div>
   )
 }
 
@@ -97,6 +144,8 @@ export function DocumentDetailPage() {
     queryKey: ['documents', id],
     queryFn: () => documentsApi.get(id),
     retry: retryUnlessClientError,
+    // Follow background processing until the document is ready or has failed.
+    refetchInterval: (query) => (isInProgress(query.state.data?.status) ? polling.intervalMs : false),
   })
 
   if (isPending) return <FullPageSpinner />
@@ -122,15 +171,17 @@ export function DocumentDetailPage() {
         <h1 className="min-w-0 break-words text-2xl font-semibold tracking-tight text-slate-900">{displayTitle(document)}</h1>
         <StatusPill status={document.status} />
       </div>
-      {document.status === 'FAILED' && document.failureReason && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          {document.failureReason}
+      {document.status === 'FAILED' && <FailureNotice document={document} />}
+      {isInProgress(document.status) && (
+        <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Reading this document. Details will appear here automatically when it's done.
         </p>
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <FileViewer document={document} />
         <DetailsPanel document={document} />
       </div>
+      <ExtractedResults document={document} />
     </div>
   )
 }

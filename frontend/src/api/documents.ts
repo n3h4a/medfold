@@ -1,4 +1,14 @@
-import { API_BASE, ApiError, apiDelete, apiGet, apiGetBlob, parseText, withAuthRecovery, type RawResponse } from './client.ts'
+import {
+  API_BASE,
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiGetBlob,
+  apiPost,
+  parseText,
+  withAuthRecovery,
+  type RawResponse,
+} from './client.ts'
 
 export type DocumentStatus = 'UPLOADED' | 'PROCESSING' | 'READY' | 'FAILED'
 export type DocumentType =
@@ -28,6 +38,56 @@ export interface MedicalDocument {
   updatedAt: string
 }
 
+/** Where a value sits relative to the reference range printed on the same report. Computed by the backend. */
+export type LabFlag = 'LOW' | 'NORMAL' | 'HIGH'
+
+export interface LabResult {
+  id: string
+  documentId: string
+  testName: string
+  testKey: string
+  valueText: string
+  valueNumeric: number | null
+  unit: string | null
+  refText: string | null
+  refLow: number | null
+  refHigh: number | null
+  flag: LabFlag | null
+  observedOn: string | null
+  pageNumber: number | null
+  userEdited: boolean
+}
+
+export interface Medication {
+  id: string
+  documentId: string
+  name: string
+  dosage: string | null
+  frequency: string | null
+  route: string | null
+  duration: string | null
+  instructions: string | null
+  prescribedOn: string | null
+  userEdited: boolean
+}
+
+export interface TermExplanation {
+  term: string
+  definition: string
+}
+
+export interface DocumentResults {
+  labResults: LabResult[]
+  medications: Medication[]
+  terms: TermExplanation[]
+}
+
+export interface DocumentStatusResponse {
+  id: string
+  status: DocumentStatus
+  failureReason: string | null
+}
+
 export interface PageResponse<T> {
   items: T[]
   page: number
@@ -41,6 +101,8 @@ export const documentsApi = {
   get: (id: string) => apiGet<MedicalDocument>(`/documents/${id}`),
   remove: (id: string) => apiDelete(`/documents/${id}`),
   file: (id: string) => apiGetBlob(`/documents/${id}/file`),
+  results: (id: string) => apiGet<DocumentResults>(`/documents/${id}/results`),
+  reprocess: (id: string) => apiPost<DocumentStatusResponse>(`/documents/${id}/reprocess`),
 }
 
 interface UploadOptions {

@@ -5,6 +5,7 @@ import { ApiError } from '../../api/client.ts'
 import type { MedicalDocument } from '../../api/documents.ts'
 import { authResponse, json, mockApi } from '../../test/mockApi.ts'
 import { renderApp } from '../../test/renderApp.tsx'
+import { polling } from './format.ts'
 
 const uploadDocument = vi.fn()
 
@@ -181,5 +182,29 @@ describe('uploading', () => {
 
     expect(await screen.findByText('42%')).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: 'Uploading big.pdf' })).toHaveAttribute('aria-valuenow', '42')
+  })
+
+  it('refreshes the list while documents are processing and stops once they are done', async () => {
+    polling.intervalMs = 20
+    let listCalls = 0
+    mockApi({
+      'POST /auth/refresh': () => json(200, authResponse()),
+      'GET /documents': () => {
+        listCalls += 1
+        return json(200, page([doc({ status: listCalls < 3 ? 'PROCESSING' : 'READY', title: 'Lipid profile' })]))
+      },
+    })
+
+    try {
+      renderApp('/')
+
+      expect(await screen.findByText('Processing')).toBeInTheDocument()
+      expect(await screen.findByText('Ready')).toBeInTheDocument()
+      const settled = listCalls
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(listCalls).toBe(settled)
+    } finally {
+      polling.intervalMs = 3000
+    }
   })
 })

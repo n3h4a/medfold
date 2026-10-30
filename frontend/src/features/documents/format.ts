@@ -1,4 +1,4 @@
-import type { DocumentStatus, DocumentType, MedicalDocument } from '../../api/documents.ts'
+import type { DocumentStatus, DocumentType, LabFlag, MedicalDocument } from '../../api/documents.ts'
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -33,3 +33,18 @@ export const typeLabel: Record<DocumentType, string> = {
 export function displayTitle(document: MedicalDocument): string {
   return document.title ?? document.originalFilename
 }
+
+/** Still waiting for, or going through, background processing. */
+export function isInProgress(status: DocumentStatus | undefined): boolean {
+  return status === 'UPLOADED' || status === 'PROCESSING'
+}
+
+/** A comparison with the printed range, worded so it never reads as a medical judgment. */
+export const flagLabel: Record<LabFlag, string> = {
+  LOW: 'Below printed range',
+  NORMAL: 'Within printed range',
+  HIGH: 'Above printed range',
+}
+
+/** How often pages check on documents that are being processed. Tests shorten it. */
+export const polling = { intervalMs: 3000 }

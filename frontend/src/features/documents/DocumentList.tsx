@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { documentsApi, type MedicalDocument } from '../../api/documents.ts'
 import { errorMessage } from '../../auth/errors.ts'
-import { displayTitle, formatBytes, formatDate, typeLabel } from './format.ts'
+import { displayTitle, formatBytes, formatDate, isInProgress, polling, typeLabel } from './format.ts'
 import { StatusPill } from './StatusPill.tsx'
 
 function FileIcon({ mimeType }: { mimeType: string }) {
@@ -67,6 +67,9 @@ export function DocumentList() {
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['documents'],
     queryFn: () => documentsApi.list(),
+    // Keep statuses current while any document is still being processed.
+    refetchInterval: (query) =>
+      query.state.data?.items.some((d) => isInProgress(d.status)) ? polling.intervalMs : false,
   })
 
   if (isPending) {
