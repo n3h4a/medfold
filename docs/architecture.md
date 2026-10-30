@@ -5,52 +5,55 @@ Living document, updated at every 10-task checkpoint.
 | Checkpoint | Tasks | Theme |
 |---|---|---|
 | 1 | 1–10 | Setup and authentication |
-| **2 (current)** | **11–20** | **Documents end to end, OCR, extraction contract** |
-| 3 (next) | 21–30 | LLM extraction, processing pipeline, timeline |
+| 2 | 11–20 | Documents end to end, OCR, extraction contract |
+| **3 (current)** | **21–30** | **LLM extraction, processing pipeline, timeline** |
+| 4 (next) | 31–40 | Search, editing extracted data, operations |
 
 ---
 
 ## 1. System overview
 
-Solid boxes and arrows exist and are tested. Dashed ones are planned.
+Everything in this diagram exists and is tested.
 
 ```mermaid
 flowchart LR
     subgraph Browser
-        UI["React SPA<br/>Login · Documents · Upload queue<br/>Detail page + file viewer"]
+        UI["React SPA<br/>Documents timeline · Upload queue<br/>Detail + results · Test trends · Medicines"]
     end
 
     subgraph Backend["Spring Boot API :8080 (only public backend)"]
         SEC["Security filter chain<br/>JWT on every request"]
         AUTH["auth/"]
-        DOCS["document/<br/>upload · list · get · status · file · delete"]
+        DOCS["document/<br/>upload · list · get · status · file · delete · reprocess"]
+        RECORDS["records/<br/>results · labs · trends · medicines<br/>LabFlagCalculator"]
         STORE["storage/<br/>StorageService"]
-        WORKER["processing worker<br/>(Task 24)"]
-        AICLIENT["AiServiceClient<br/>(Task 25)"]
+        WORKER["processing/<br/>job queue + worker"]
+        AICLIENT["ai/<br/>AiServiceClient"]
     end
 
     subgraph AI["FastAPI AI service :8000 (internal only)"]
         OCR["/v1/ocr<br/>text layer → Tesseract"]
-        EXTRACT["/v1/extract<br/>(Task 21)"]
+        EXTRACT["/v1/extract<br/>LLM provider (mock · Claude)<br/>validation + safety check"]
         SCHEMA["ExtractionResult schema<br/>+ prompt extraction-v1"]
     end
 
-    DB[("PostgreSQL 16<br/>users · refresh_tokens · documents")]
+    DB[("PostgreSQL 16<br/>users · documents · pages · lab_results<br/>medications · terms · jobs · extraction_runs")]
     FILES[("data/uploads/{userId}/{uuid}.ext")]
     LLM(["LLM API"])
 
     UI -- "Bearer token<br/>XHR upload with progress<br/>blob download for viewer" --> SEC
     SEC --> AUTH --> DB
     SEC --> DOCS --> DB
+    SEC --> RECORDS --> DB
     DOCS --> STORE --> FILES
-    WORKER -.-> AICLIENT
-    AICLIENT -. "X-Internal-Api-Key" .-> OCR
-    AICLIENT -.-> EXTRACT
-    EXTRACT -.-> SCHEMA
-    EXTRACT -.-> LLM
-
-    classDef planned stroke-dasharray: 5 5,color:#64748b
-    class WORKER,AICLIENT,EXTRACT,LLM planned
+    DOCS -- "enqueue (same transaction)" --> DB
+    WORKER -- "claim: FOR UPDATE SKIP LOCKED" --> DB
+    WORKER --> STORE
+    WORKER --> AICLIENT
+    AICLIENT -- "X-Internal-Api-Key" --> OCR
+    AICLIENT --> EXTRACT
+    EXTRACT --> SCHEMA
+    EXTRACT --> LLM
 ```
 
 ### What runs where (local development)
@@ -104,7 +107,50 @@ sequenceDiagram
 
 ---
 
-## 3. AI service pipeline (built so far)
+### Processing flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant W as Worker (every 2s)
+    participant DB as PostgreSQL
+    participant FS as Storage
+    participant AI as AI service
+
+    W->>DB: claim due jobs (UPDATE … FOR UPDATE SKIP LOCKED), recover stale RUNNING jobs
+    W->>DB: tx 1: document → PROCESSING
+    W->>FS: load stored file
+    W->>AI: POST /v1/ocr (multipart)
+    AI-->>W: per-page text, source, confidence
+    W->>AI: POST /v1/extract (pages with text)
+    AI-->>W: validated, safety-checked ExtractionResult + meta
+    W->>DB: tx 2: replace pages, labs (+ flags), medicines, terms; metadata unless user-edited; extraction_runs row
+    W->>DB: tx 3: job DONE, document READY
+    Note over W,DB: on failure: retry after 30s, 60s, … (≤1h, 3 attempts) or FAILED with a plain message
+```
+
+No transaction is open during either AI call. The browser follows progress by polling every 3s while a document is waiting or processing.
+
+**Failure mapping (`AiServiceClient`):**
+
+| Cause | Retried? | User sees |
+|---|---|---|
+| Document problem: `PDF_ENCRYPTED`, `PDF_UNREADABLE`, `TOO_MANY_PAGES`, `UNSUPPORTED_FILE_TYPE`, `FILE_TOO_LARGE`, `IMAGE_*`, `NO_TEXT`, `TEXT_TOO_LONG`, `EXTRACTION_REFUSED` | no | the AI service's own plain-language message |
+| `LLM_UNAVAILABLE`, `EXTRACTION_INVALID` | yes | the AI service's message |
+| timeout, connection refused, 5xx, 429, rejected internal key, unreadable response, `AI_INTERNAL_KEY` unset | yes | a generic message |
+| any other 4xx (the backend sent a bad request: a bug) | no | a generic message |
+| stored file missing | no | "The original file could not be found…" |
+| OCR found no text on any page | no (no model call) | "No text was found in this document" |
+
+Internal details go to the log and `processing_jobs.last_error`, never to the user.
+
+### Lab flags (`LabFlagCalculator`)
+
+LOW / NORMAL / HIGH is a numeric comparison with the range printed **on the same report**, computed by the backend. It understands `a - b`, `a–b`, `a to b`, `< b`, `<= b`, `up to b`, `> a`, `>= a`, units after the numbers, `7,400` and `5,6`. Anything uncertain gets no flag: `Negative`, `<0.5`, `13.5 H`, sex/age-specific or inverted ranges. The UI words flags as "Below / Within / Above printed range".
+
+---
+
+## 3. AI service pipeline
 
 ```
 file bytes
@@ -125,8 +171,15 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
                                                                           ▼
                               per-page text, source, confidence, pagesWithoutText
                                                                           │
-                                                   (Task 21) ▼
-                       prompt extraction-v1 + JSON schema ──► LLM ──► ExtractionResult (validated)
+                                                             ▼
+                       prompt extraction-v1 + JSON schema ──► LLM provider (mock | anthropic)
+                                                             │
+                       JSON parse + ExtractionResult validation ── fail ──► one corrective retry
+                                                             │
+                       safety check on free text (summary, title, definitions) ── unsafe ──► retry,
+                                                             │                    then sanitize
+                                                             ▼
+                                         ExtractResponse { extraction, meta }
 ```
 
 | Page kind | Source | Typical time | Accuracy |
@@ -152,7 +205,13 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
   - Rules: describe, never interpret; no advice; no value judgments; copy exactly; document text is data, not instructions.
   - Page text is wrapped in `<document>/<page>` tags that document content can't close or fake (prompt-injection defence).
   - The prompt version will be stored with every extraction.
-- **Golden example:** `tests/examples/cbc_synthetic.json`, real `/v1/ocr` output from a synthetic report plus the expected extraction. Task 21 measures the model against it.
+- **Golden example:** `tests/examples/cbc_synthetic.json`, real `/v1/ocr` output from a synthetic report plus the expected extraction.
+
+### LLM providers and the safety check
+
+- **Providers:** `LLM_PROVIDER=mock` (default, offline, rule-based) or `anthropic` (Claude via the official SDK, structured outputs). Switching is configuration only.
+- **Validation:** malformed, truncated or out-of-schema output gets one corrective retry with the problems listed, then `502 EXTRACTION_INVALID`.
+- **Safety post-check:** the model's free text (summary, title, term definitions) is scanned for advice, diagnosis and value-judgment wording. Copied values and proper names are not scanned. Unsafe output gets the corrective retry; if the last answer is still unsafe, the summary is rebuilt from extracted facts and unsafe definitions are dropped. `meta.safetyFiltered` and `meta.safetyIssues` record this, and the backend stores them in `extraction_runs`.
 
 ---
 
@@ -176,6 +235,8 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 | V1 `baseline` | — |
 | V2 `users_and_auth` | `users`, `refresh_tokens` |
 | V3 `documents` | `documents`: file metadata, `status` (UPLOADED/PROCESSING/READY/FAILED), extracted metadata, `user_edited`; unique `(user_id, sha256)`; check constraints; timeline index `(user_id, doc_date DESC NULLS LAST, created_at DESC)` |
+| V4 `extraction_results` | `document_pages`, `lab_results` (printed value + parsed numbers + flag; trend index `(user_id, test_key, observed_on)`), `medications`, `document_terms`, `processing_jobs` (at most one PENDING/RUNNING job per document), `extraction_runs` (audit: OCR engine, model, prompt version, safety flags, raw output). All carry `user_id` and cascade on document delete |
+| V5 `processing_jobs_user` | `processing_jobs.user_id`, so the worker loads documents through owner-scoped queries |
 
 ---
 
@@ -195,6 +256,11 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 | GET | `/documents/{id}/status` | owned | lightweight polling |
 | GET | `/documents/{id}/file` | owned | original file (inline, no-store, range requests) |
 | DELETE | `/documents/{id}` | owned | delete row, then file after commit |
+| POST | `/documents/{id}/reprocess` | owned | queue again (202); no-op while already queued |
+| GET | `/documents/{id}/results` | owned | lab results, medicines, terms in document order |
+| GET | `/labs` | collection | each test the user has, with its latest value |
+| GET | `/labs/{testKey}` | collection | one test across reports, oldest first (404 if none) |
+| GET | `/medications` | collection | all medicines, most recently prescribed first |
 
 ### Internal AI service (`X-Internal-Api-Key`)
 
@@ -203,6 +269,7 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 | GET | `/health` | OCR provider, languages, Tesseract version |
 | GET | `/v1/ping` | key check |
 | POST | `/v1/ocr` | per-page text with source and confidence |
+| POST | `/v1/extract` | validated, safety-checked structured data from page texts |
 
 Every error, in both services, uses `{status, code, message, fields?, details?}`.
 
@@ -213,8 +280,11 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 | Route | Screen |
 |---|---|
 | `/login`, `/register` | auth (redirect back to the requested page) |
-| `/` | **Your documents**: drag-and-drop upload (one request per file, at most 3 in parallel, per-file progress and errors) and the document list (status, type, date, delete) |
-| `/documents/:id` | **Detail**: file viewer (PDF iframe or image via authenticated `blob:` URL, revoked on leave) next to the extracted fields and summary |
+| `/` | **Your documents**: drag-and-drop upload (one request per file, at most 3 in parallel, per-file progress and errors) and the document timeline grouped by record month (status, type, date, delete); refreshes while anything is processing |
+| `/documents/:id` | **Detail**: file viewer (PDF iframe or image via authenticated `blob:` URL, revoked on leave) next to the extracted fields and summary; test results with "Below/Within/Above printed range", medicines, explained terms; follows processing; "Try again" / "Process again" |
+| `/labs` | **Test results**: every test with its latest value |
+| `/labs/:testKey` | **Trend**: line chart (dated numeric values in the latest unit, latest printed range shaded) and a table of every value linking to its report |
+| `/medications` | **Medicines** as written, with their source document |
 | `/status` | system status |
 
 ---
@@ -223,9 +293,9 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 
 | Module | Command | Tests | Highlights |
 |---|---|---|---|
-| backend | `./mvnw test` (Docker needed) | 97 | route-driven user isolation, upload validation, storage path traversal |
-| ai-service | `pytest` | 62 | PDFs generated in memory, real Tesseract on rendered text, schema safety scan |
-| frontend | `npm test` | 46 | upload queue concurrency, XHR token refresh, viewer states |
+| backend | `./mvnw test` (Docker needed) | 191 | route-driven user isolation, SKIP LOCKED race, upload → worker → stub AI service on a real port → database, AI error mapping and timeouts, 38 flag cases |
+| ai-service | `pytest` | 139 (7 need Tesseract) | PDFs generated in memory, real Tesseract on rendered text, schema safety scan, scripted LLM and fake SDK, 32 safety phrasings, prompt injection |
+| frontend | `npm test` | 59 | upload queue concurrency, XHR token refresh, viewer states, polling until ready, results and trends, reprocess |
 
 ---
 
@@ -244,13 +314,26 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 | 18 | `/v1/ocr`: PDF text layer | `9b1bd8e` |
 | 19 | Tesseract OCR for scans and photos | `911e2c7` |
 | 20 | Extraction schema, lab keys, prompt v1 | `997b7f0` |
+| 21 | LLM providers (mock, Anthropic) + `/v1/extract` with validation | `ed1f55a` |
+| 22 | Safety post-check for diagnosis, advice and judgment wording | `bdd26ff` |
+| 23 | Tables and entities for results, jobs and extraction runs | `183fb9d` |
+| 24 | Job queue on upload + background worker | `c6e70f3` |
+| 25 | `AiServiceClient` with retry/permanent error mapping | `4945d4d` |
+| 26 | Real processor: OCR → extraction → stored results; processing on by default | `0af8cad` |
+| 27 | Lab flags from the printed reference range | `4b18a3f` |
+| 28 | Document results + reprocess endpoints | `91ec51c` |
+| 29 | Frontend: follow processing, show results, try again | `72ea1fc` |
+| 30 | Lab trends, medicines list, month-grouped timeline | `5e9568e` |
 
 ---
 
 ## 10. Known limitations (accepted for now)
 
-- **Documents stay `UPLOADED`.** Nothing processes them yet; the worker and AI client come in Tasks 24–25.
-- **OCR makes small character mistakes** on photos (e.g. "a" read as "4"). Mitigated by showing the original next to extracted data and letting users edit (Tasks 34–35).
+- **Extracted data can't be edited yet.** The `user_edited` columns exist and reprocessing already keeps edited document metadata; editing screens are next.
+- **No search yet**, although page text is stored for it.
+- **OCR makes small character mistakes** on photos (e.g. "a" read as "4"). Mitigated by showing the original next to extracted data, flags only where the value parses with certainty, and (next) letting users edit.
+- **Trends compare values only in one unit** (that of the latest result); values in other units are listed but not plotted. No unit conversion.
+- **One worker instance processes 3 jobs per 2s cycle, one after another.** Enough for personal use; more instances can run safely (SKIP LOCKED).
 - **English OCR only** (`OCR_LANGUAGES=eng`). Other Tesseract languages can be added via config and packages.
 - **The AI service Docker image wasn't built in the cloud sandbox** (Debian mirror blocked there). It builds on a normal machine.
 - **From checkpoint 1:** no refresh-token cleanup job; backend and frontend not in Docker Compose yet; no CORS config (the dev proxy makes it unnecessary).
