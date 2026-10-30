@@ -18,6 +18,7 @@ import com.medfold.document.DocumentRepository;
 import com.medfold.document.DocumentTerm;
 import com.medfold.document.DocumentTermRepository;
 import com.medfold.document.TextSource;
+import com.medfold.records.LabFlagCalculator;
 import com.medfold.records.LabResult;
 import com.medfold.records.LabResultRepository;
 import com.medfold.records.Medication;
@@ -82,8 +83,10 @@ public class ProcessingResultWriter {
 
         List<LabResult> labs = new ArrayList<>();
         for (ExtractionResult.Lab lab : extraction.labResults()) {
-            labs.add(new LabResult(documentId, userId, labs.size(), lab.testName(), lab.testKey(), lab.valueText(),
-                    lab.unit(), lab.referenceRangeText(), lab.pageNumber(), recordDate));
+            LabResult row = new LabResult(documentId, userId, labs.size(), lab.testName(), lab.testKey(),
+                    lab.valueText(), lab.unit(), lab.referenceRangeText(), lab.pageNumber(), recordDate);
+            LabFlagCalculator.apply(row);
+            labs.add(row);
         }
         labResultRepository.saveAll(labs);
 

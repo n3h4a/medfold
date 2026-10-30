@@ -41,6 +41,7 @@ import com.medfold.document.DocumentStatus;
 import com.medfold.document.DocumentTermRepository;
 import com.medfold.document.DocumentType;
 import com.medfold.document.TextSource;
+import com.medfold.records.LabFlag;
 import com.medfold.records.LabResult;
 import com.medfold.records.LabResultRepository;
 import com.medfold.records.Medication;
@@ -203,6 +204,10 @@ class DocumentPipelineTest {
             assertThat(lab.getRefText()).isEqualTo("13.0 - 17.0");
             assertThat(lab.getObservedOn()).isEqualTo(LocalDate.of(2026, 3, 14));
             assertThat(lab.getPageNumber()).isEqualTo(1);
+            assertThat(lab.getValueNumeric()).isEqualByComparingTo("13.5");
+            assertThat(lab.getRefLow()).isEqualByComparingTo("13.0");
+            assertThat(lab.getRefHigh()).isEqualByComparingTo("17.0");
+            assertThat(lab.getFlag()).isEqualTo(LabFlag.NORMAL);
         });
 
         List<Medication> medicines = medicationRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId());
@@ -243,6 +248,8 @@ class DocumentPipelineTest {
         assertThat(labRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId()))
                 .extracting(LabResult::getTestName, LabResult::getValueText)
                 .containsExactly(tuple("Hb", "14.1"));
+        assertThat(labRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId()).getFirst().getFlag())
+                .isEqualTo(LabFlag.NORMAL);
         assertThat(medicationRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId())).hasSize(1);
         assertThat(termRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId())).hasSize(1);
         assertThat(pageRepository.findByDocumentIdAndUserIdOrderByPageNumber(id, user.getId())).hasSize(2);
