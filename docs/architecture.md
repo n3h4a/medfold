@@ -6,8 +6,8 @@ Living document, updated at every 10-task checkpoint.
 |---|---|---|
 | 1 | 1–10 | Setup and authentication |
 | 2 | 11–20 | Documents end to end, OCR, extraction contract |
-| **3 (current)** | **21–30** | **LLM extraction, processing pipeline, timeline** |
-| 4 (next) | 31–40 | Search, editing extracted data, operations |
+| 3 | 21–30 | LLM extraction, processing pipeline, timeline |
+| **4 (current, 31–36 done)** | **31–40** | **Search, editing extracted data, operations** |
 
 ---
 
@@ -18,14 +18,15 @@ Everything in this diagram exists and is tested.
 ```mermaid
 flowchart LR
     subgraph Browser
-        UI["React SPA<br/>Documents timeline · Upload queue<br/>Detail + results · Test trends · Medicines"]
+        UI["React SPA<br/>Documents timeline + search · Upload queue<br/>Detail + results + editing · Test trends · Medicines"]
     end
 
     subgraph Backend["Spring Boot API :8080 (only public backend)"]
         SEC["Security filter chain<br/>JWT on every request"]
         AUTH["auth/"]
-        DOCS["document/<br/>upload · list · get · status · file · delete · reprocess"]
-        RECORDS["records/<br/>results · labs · trends · medicines<br/>LabFlagCalculator"]
+        DOCS["document/<br/>upload · list · get · status · file · delete<br/>reprocess · edit details"]
+        RECORDS["records/<br/>results · labs · trends · medicines<br/>edit/remove rows · LabFlagCalculator"]
+        SEARCH["search/<br/>every word, owner-scoped SQL"]
         STORE["storage/<br/>StorageService"]
         WORKER["processing/<br/>job queue + worker"]
         AICLIENT["ai/<br/>AiServiceClient"]
@@ -45,6 +46,7 @@ flowchart LR
     SEC --> AUTH --> DB
     SEC --> DOCS --> DB
     SEC --> RECORDS --> DB
+    SEC --> SEARCH --> DB
     DOCS --> STORE --> FILES
     DOCS -- "enqueue (same transaction)" --> DB
     WORKER -- "claim: FOR UPDATE SKIP LOCKED" --> DB
@@ -56,7 +58,11 @@ flowchart LR
     EXTRACT --> LLM
 ```
 
-### What runs where (local development)
+### What runs where
+
+**Everything in Docker:** `docker compose up -d --build`, then http://localhost:3000. nginx serves the SPA and forwards `/api` to the backend (one origin, so no CORS and the `SameSite=Strict` refresh cookie works). Uploads live in the `medfold_uploads` volume, database data in `medfold_pgdata`.
+
+**Local development:**
 
 | Component | How to start | Port |
 |---|---|---|
@@ -148,6 +154,32 @@ Internal details go to the log and `processing_jobs.last_error`, never to the us
 
 LOW / NORMAL / HIGH is a numeric comparison with the range printed **on the same report**, computed by the backend. It understands `a - b`, `a–b`, `a to b`, `< b`, `<= b`, `up to b`, `> a`, `>= a`, units after the numbers, `7,400` and `5,6`. Anything uncertain gets no flag: `Negative`, `<0.5`, `13.5 H`, sex/age-specific or inverted ranges. The UI words flags as "Below / Within / Above printed range".
 
+### Search (`GET /search?q=`)
+
+A document matches when **every word** appears somewhere in it: title, summary, doctor, facility, file name, page text, a test name or a medicine name. Matching is by substring (`ILIKE`, LIKE wildcards escaped), so "metfor" and "hba1c" work; at one person's scale this needs no full-text index. Results come in timeline order, at most 50, each with a snippet of page text around the first word and its page number. Every statement is scoped to the user, including the subqueries.
+
+### Editing extracted data
+
+| Endpoint | What can change |
+|---|---|
+| `PATCH /documents/{id}` | type, record date (can't be cleared; not in the future, not before 1900), title, doctor, facility, summary |
+| `PATCH` / `DELETE /lab-results/{id}` | test name, result, unit, printed range; the flag is recomputed |
+| `PATCH` / `DELETE /medications/{id}` | name, dose, frequency, route, duration, instructions |
+
+- **PATCH semantics:** an omitted field is unchanged and an empty string clears it. That lets `{}` pass validation, so the isolation suite's attacker always reaches the ownership check and gets 404.
+- **Corrections are marked `user_edited`** only when a value actually changed.
+- **A new record date re-dates the document's lab results and medicines,** so trends follow the correction.
+- **Reprocessing keeps corrections.** Edited document details are not overwritten. Edited lab rows and medicines are kept, and the new reading of the same test (by test key) or medicine (by name) is skipped instead of duplicated. All other rows are replaced as before.
+
+### Trend units
+
+The trend chart plots values in the unit of the latest result. Unit spellings count as one unit (`g/dL` = `gm/dl`, `µmol/L` = `umol/l`, `/cumm` = `/µL`). A short, explicit list of standard conversions is applied per test key: glucose, cholesterol (total/LDL/HDL), triglycerides, creatinine, uric acid, urea, haemoglobin (g/dL ↔ g/L), vitamin D, and HbA1c (% ↔ mmol/mol, IFCC–NGSP master equation). Converted points say "printed as …". Anything else is never converted and stays table-only, and tables always show values exactly as printed.
+
+### Operations
+
+- **Refresh-token cleanup:** a daily job deletes tokens one day after they expire. Revoked tokens are kept until then, because presenting one again is how reuse is detected.
+- **Images:** the backend is built with the Maven wrapper and runs on a JRE as a non-root user; the frontend is built with Vite and served by nginx (SPA fallback, immutable hashed assets, 11 MB upload limit).
+
 ---
 
 ## 3. AI service pipeline
@@ -238,6 +270,8 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 | V4 `extraction_results` | `document_pages`, `lab_results` (printed value + parsed numbers + flag; trend index `(user_id, test_key, observed_on)`), `medications`, `document_terms`, `processing_jobs` (at most one PENDING/RUNNING job per document), `extraction_runs` (audit: OCR engine, model, prompt version, safety flags, raw output). All carry `user_id` and cascade on document delete |
 | V5 `processing_jobs_user` | `processing_jobs.user_id`, so the worker loads documents through owner-scoped queries |
 
+No migrations were needed for checkpoint 4: search reads existing columns, and `user_edited` already existed on documents, lab results and medicines.
+
 ---
 
 ## 6. API (current)
@@ -261,6 +295,10 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 | GET | `/labs` | collection | each test the user has, with its latest value |
 | GET | `/labs/{testKey}` | collection | one test across reports, oldest first (404 if none) |
 | GET | `/medications` | collection | all medicines, most recently prescribed first |
+| PATCH | `/documents/{id}` | owned | correct details |
+| PATCH, DELETE | `/lab-results/{id}` | owned | correct or remove a lab result |
+| PATCH, DELETE | `/medications/{id}` | owned | correct or remove a medicine |
+| GET | `/search?q=` | collection | documents containing every word, with snippets (≤ 50) |
 
 ### Internal AI service (`X-Internal-Api-Key`)
 
@@ -280,10 +318,10 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 | Route | Screen |
 |---|---|
 | `/login`, `/register` | auth (redirect back to the requested page) |
-| `/` | **Your documents**: drag-and-drop upload (one request per file, at most 3 in parallel, per-file progress and errors) and the document timeline grouped by record month (status, type, date, delete); refreshes while anything is processing |
-| `/documents/:id` | **Detail**: file viewer (PDF iframe or image via authenticated `blob:` URL, revoked on leave) next to the extracted fields and summary; test results with "Below/Within/Above printed range", medicines, explained terms; follows processing; "Try again" / "Process again" |
+| `/` | **Your documents**: drag-and-drop upload (one request per file, at most 3 in parallel, per-file progress and errors), a search box (results with snippets once typing pauses), and the document timeline grouped by record month (status, type, date, delete); refreshes while anything is processing |
+| `/documents/:id` | **Detail**: file viewer (PDF iframe or image via authenticated `blob:` URL, revoked on leave) next to the extracted fields and summary; test results with "Below/Within/Above printed range", medicines, explained terms; follows processing; "Try again" / "Process again"; "Edit details", and Edit / Remove on every lab row and medicine ("Edited" marks corrections) |
 | `/labs` | **Test results**: every test with its latest value |
-| `/labs/:testKey` | **Trend**: line chart (dated numeric values in the latest unit, latest printed range shaded) and a table of every value linking to its report |
+| `/labs/:testKey` | **Trend**: line chart (dated numeric values in the latest unit, standard conversions labelled "printed as …", latest printed range shaded) and a table of every value as printed, linking to its report |
 | `/medications` | **Medicines** as written, with their source document |
 | `/status` | system status |
 
@@ -293,9 +331,9 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 
 | Module | Command | Tests | Highlights |
 |---|---|---|---|
-| backend | `./mvnw test` (Docker needed) | 191 | route-driven user isolation, SKIP LOCKED race, upload → worker → stub AI service on a real port → database, AI error mapping and timeouts, 38 flag cases |
+| backend | `./mvnw test` (Docker needed) | 205 | route-driven user isolation (now also attacking another user's lab result and medicine), SKIP LOCKED race, upload → worker → stub AI service on a real port → database, AI error mapping and timeouts, 38 flag cases, search escaping and isolation, corrections surviving reprocessing |
 | ai-service | `pytest` | 139 (7 need Tesseract) | PDFs generated in memory, real Tesseract on rendered text, schema safety scan, scripted LLM and fake SDK, 32 safety phrasings, prompt injection |
-| frontend | `npm test` | 59 | upload queue concurrency, XHR token refresh, viewer states, polling until ready, results and trends, reprocess |
+| frontend | `npm test` | 79 | upload queue concurrency, XHR token refresh, viewer states, polling until ready, results and trends, unit conversions, search, editing forms, reprocess |
 
 ---
 
@@ -324,18 +362,22 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 | 28 | Document results + reprocess endpoints | `91ec51c` |
 | 29 | Frontend: follow processing, show results, try again | `72ea1fc` |
 | 30 | Lab trends, medicines list, month-grouped timeline | `5e9568e` |
+| 31 | Search by any word in details, text, tests and medicines | `f0bfbbc` |
+| 32–33 | Backend: correct document details, lab results and medicines; corrections survive reprocessing | `3c38c0f` |
+| 34 | Frontend: editing forms, Edit / Remove on results | `9785dee` |
+| 35 | Refresh-token cleanup; backend and frontend in Docker Compose | `a87ea55` |
+| 36 | Trend charts across units with standard conversions | `65d2551` |
 
 ---
 
 ## 10. Known limitations (accepted for now)
 
-- **Extracted data can't be edited yet.** The `user_edited` columns exist and reprocessing already keeps edited document metadata; editing screens are next.
-- **No search yet**, although page text is stored for it.
-- **OCR makes small character mistakes** on photos (e.g. "a" read as "4"). Mitigated by showing the original next to extracted data, flags only where the value parses with certainty, and (next) letting users edit.
-- **Trends compare values only in one unit** (that of the latest result); values in other units are listed but not plotted. No unit conversion.
+- **OCR makes small character mistakes** on photos (e.g. "a" read as "4"). Mitigated by showing the original next to extracted data, flags only where the value parses with certainty, and letting users correct any value.
+- **Unit conversion covers a fixed list of tests** (see *Trend units*); other unit changes leave values table-only. Units that are numerically identical under different names (e.g. µIU/mL and mIU/L for TSH) are not yet recognised.
+- **Search is substring matching** without ranking or typo tolerance; fine for one person's records.
+- **Corrected rows are matched to new readings by test key or medicine name only.** A corrected row whose name was changed to something new can sit next to a fresh reading of the original line after reprocessing.
 - **One worker instance processes 3 jobs per 2s cycle, one after another.** Enough for personal use; more instances can run safely (SKIP LOCKED).
 - **English OCR only** (`OCR_LANGUAGES=eng`). Other Tesseract languages can be added via config and packages.
 - **The AI service Docker image wasn't built in the cloud sandbox** (Debian mirror blocked there). It builds on a normal machine.
 - **No CORS config,** by design: the Vite dev proxy and nginx in Docker Compose both serve the SPA and `/api` from one origin.
-- **Since checkpoint 3:** search (task 31), editing (32–34), refresh-token cleanup and the full Docker Compose setup (35) are done; the checkpoint 4 recap will document them.
 - **The frontend and backend images weren't built end to end in the cloud sandbox** (package registries are unreachable from Docker builds there). Their runtime stages were verified with locally built artifacts: backend migrates and serves, nginx serves the SPA and proxies `/api`.
