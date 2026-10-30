@@ -11,7 +11,7 @@ import datetime as dt
 from enum import Enum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, computed_field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.extraction.lab_keys import lab_test_key
@@ -60,9 +60,13 @@ class LabResult(_Strict):
     )
     page_number: int | None = Field(default=None, ge=1, description="Page the result appears on.")
 
+    @computed_field(alias="testKey")
     @property
     def test_key(self) -> str:
-        """Canonical key used to line up the same test across reports (computed, not from the model)."""
+        """
+        Canonical key used to line up the same test across reports. Computed here, never taken from
+        the model; it appears in responses but not in the schema the model is given.
+        """
         return lab_test_key(self.test_name)
 
 

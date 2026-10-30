@@ -12,6 +12,7 @@ dependencies = [
     "pypdfium2>=5.14,<6.0",
     "pillow>=13.0,<14.0",
     "pytesseract>=0.3.13,<0.4",
+    "anthropic>=2.3,<3.0",
 ]
 
 [project.optional-dependencies]

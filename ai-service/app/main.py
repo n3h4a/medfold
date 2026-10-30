@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.errors import register_error_handlers
-from app.routers import health, ocr
+from app.routers import extract, health, ocr
 
 app = FastAPI(
     title="Medfold AI Service",
@@ -12,3 +12,4 @@ app = FastAPI(
 register_error_handlers(app)
 app.include_router(health.router)
 app.include_router(ocr.router)
+app.include_router(extract.router)

@@ -36,7 +36,8 @@ def health(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
         "tesseractAvailable": version is not None,
         "tesseractVersion": version,
         "internalKeyConfigured": bool(settings.ai_internal_key),
-        "llmConfigured": bool(settings.llm_api_key),
+        "llmProvider": settings.llm_provider,
+        "llmModel": "medfold-rule-based-v1" if settings.llm_provider == "mock" else settings.llm_model,
     }
 
 

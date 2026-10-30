@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 
@@ -18,4 +19,12 @@ def register_error_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status,
             content={"status": exc.status, "code": exc.code, "message": exc.message},
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def handle_validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        fields = {".".join(str(p) for p in e["loc"] if p != "body") or "body": e["msg"] for e in exc.errors()}
+        return JSONResponse(
+            status_code=422,
+            content={"status": 422, "code": "VALIDATION_ERROR", "message": "Some fields are invalid", "fields": fields},
         )
