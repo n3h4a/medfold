@@ -2,6 +2,7 @@ package com.medfold.ai;
 
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,8 +58,20 @@ public class AiServiceClient {
     private static final Set<String> USER_FACING_TEMPORARY = Set.of("LLM_UNAVAILABLE", "EXTRACTION_INVALID");
 
     private static final String KEY_HEADER = "X-Internal-Api-Key";
+    private static final Duration PING_TIMEOUT = Duration.ofSeconds(2);
+
+    /** Whether documents can be processed right now, as far as the AI service is concerned. */
+    public enum Availability {
+        UP,
+        /** Unreachable, failing, or rejecting the internal key. */
+        DOWN,
+        /** AI_INTERNAL_KEY is not set on the backend. */
+        NOT_CONFIGURED
+    }
 
     private final RestClient restClient;
+    /** Short timeouts: a status check must never hang the health endpoint. */
+    private final RestClient pingClient;
     private final JsonMapper jsonMapper;
     private final String internalKey;
 
@@ -74,10 +87,30 @@ public class AiServiceClient {
                 .baseUrl(properties.baseUrl())
                 .requestFactory(requestFactory)
                 .build();
+        JdkClientHttpRequestFactory pingFactory = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
+                .connectTimeout(PING_TIMEOUT)
+                .proxy(HttpClient.Builder.NO_PROXY)
+                .build());
+        pingFactory.setReadTimeout(PING_TIMEOUT);
+        this.pingClient = RestClient.builder().baseUrl(properties.baseUrl()).requestFactory(pingFactory).build();
         this.jsonMapper = jsonMapper;
         this.internalKey = properties.internalKey();
         if (internalKey == null || internalKey.isBlank()) {
             log.warn("AI_INTERNAL_KEY is not set; documents cannot be processed until it is");
+        }
+    }
+
+    /** Calls /v1/ping, which also proves the internal key is accepted. Never throws. */
+    public Availability availability() {
+        if (internalKey == null || internalKey.isBlank()) {
+            return Availability.NOT_CONFIGURED;
+        }
+        try {
+            pingClient.get().uri("/v1/ping").header(KEY_HEADER, internalKey).retrieve().toBodilessEntity();
+            return Availability.UP;
+        } catch (RestClientException ex) {
+            log.debug("AI service ping failed: {}", ex.getMessage());
+            return Availability.DOWN;
         }
     }
 

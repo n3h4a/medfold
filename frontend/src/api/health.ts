@@ -7,6 +7,9 @@ export interface HealthResponse {
   status: ServiceStatus
   database: ServiceStatus
   schemaVersion?: string
+  /** Not part of status: the API works without it, documents just wait to be processed. */
+  aiService?: 'UP' | 'DOWN' | 'NOT_CONFIGURED'
+  processing?: 'ON' | 'OFF'
 }
 
 /**

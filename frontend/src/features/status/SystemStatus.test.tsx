@@ -51,4 +51,23 @@ describe('SystemStatus', () => {
 
     expect(await screen.findByText('Unreachable')).toBeInTheDocument()
   })
+
+  it('shows whether documents can be read and processed', async () => {
+    mockFetch(200, { service: 'medfold-backend', status: 'UP', database: 'UP', aiService: 'DOWN', processing: 'ON' })
+
+    renderWithQuery()
+
+    expect(await screen.findByText('Unavailable, uploads wait')).toBeInTheDocument()
+    expect(screen.getByText('AI service (reading documents)')).toBeInTheDocument()
+    expect(screen.getByText('On')).toBeInTheDocument()
+  })
+
+  it('says when the AI service is not configured or processing is off', async () => {
+    mockFetch(200, { service: 'medfold-backend', status: 'UP', database: 'UP', aiService: 'NOT_CONFIGURED', processing: 'OFF' })
+
+    renderWithQuery()
+
+    expect(await screen.findByText('Not configured')).toBeInTheDocument()
+    expect(screen.getByText('Off on this server')).toBeInTheDocument()
+  })
 })

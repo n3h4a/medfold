@@ -27,7 +27,10 @@ class HealthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.database").value("UP"))
-                .andExpect(jsonPath("$.schemaVersion").value("5"));
+                .andExpect(jsonPath("$.schemaVersion").value("5"))
+                // Tests set no AI_INTERNAL_KEY and drive the worker themselves.
+                .andExpect(jsonPath("$.aiService").value("NOT_CONFIGURED"))
+                .andExpect(jsonPath("$.processing").value("OFF"));
     }
 
     @Test

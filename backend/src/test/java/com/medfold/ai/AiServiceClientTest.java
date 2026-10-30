@@ -303,4 +303,36 @@ class AiServiceClientTest {
                 });
         assertThat(captured.get()).isNull();
     }
+
+    @Test
+    void availabilityPingsWithTheInternalKey() {
+        respond(200, "{\"pong\":true}");
+
+        assertThat(client().availability()).isEqualTo(AiServiceClient.Availability.UP);
+        assertThat(captured.get().method()).isEqualTo("GET");
+        assertThat(captured.get().path()).isEqualTo("/v1/ping");
+        assertThat(captured.get().key()).isEqualTo(KEY);
+    }
+
+    @Test
+    void availabilityIsDownWhenTheKeyIsRejectedOrNobodyAnswers() throws IOException {
+        respond(401, "{\"detail\":\"Invalid or missing internal API key\"}");
+        assertThat(client().availability()).isEqualTo(AiServiceClient.Availability.DOWN);
+
+        int closedPort;
+        try (ServerSocket socket = new ServerSocket(0)) {
+            closedPort = socket.getLocalPort();
+        }
+        AiServiceClient unreachable = new AiServiceClient(new AiServiceProperties("http://127.0.0.1:" + closedPort, KEY,
+                Duration.ofSeconds(2), Duration.ofSeconds(2)), jsonMapper);
+        assertThat(unreachable.availability()).isEqualTo(AiServiceClient.Availability.DOWN);
+    }
+
+    @Test
+    void availabilityWithoutAKeyIsNotConfiguredAndSendsNothing() {
+        respond(200, "{}");
+
+        assertThat(client("", Duration.ofSeconds(5)).availability()).isEqualTo(AiServiceClient.Availability.NOT_CONFIGURED);
+        assertThat(captured.get()).isNull();
+    }
 }

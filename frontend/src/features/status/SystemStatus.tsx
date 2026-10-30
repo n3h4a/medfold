@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchHealth } from '../../api/health.ts'
+import { fetchHealth, type HealthResponse } from '../../api/health.ts'
 
 type Tone = 'ok' | 'bad' | 'pending'
 
@@ -7,6 +7,12 @@ const toneClasses: Record<Tone, string> = {
   ok: 'bg-emerald-100 text-emerald-800',
   bad: 'bg-red-100 text-red-800',
   pending: 'bg-slate-100 text-slate-600',
+}
+
+const aiLabel: Record<NonNullable<HealthResponse['aiService']>, [string, Tone]> = {
+  UP: ['Available', 'ok'],
+  DOWN: ['Unavailable, uploads wait', 'bad'],
+  NOT_CONFIGURED: ['Not configured', 'bad'],
 }
 
 function StatusRow({ label, value, tone }: { label: string; value: string; tone: Tone }) {
@@ -50,6 +56,16 @@ export function SystemStatus() {
       <dl className="mt-2 divide-y divide-slate-100">
         <StatusRow label="Backend" value={backend[0]} tone={backend[1]} />
         <StatusRow label="Database" value={database[0]} tone={database[1]} />
+        {data?.aiService && (
+          <StatusRow label="AI service (reading documents)" value={aiLabel[data.aiService][0]} tone={aiLabel[data.aiService][1]} />
+        )}
+        {data?.processing && (
+          <StatusRow
+            label="Document processing"
+            value={data.processing === 'ON' ? 'On' : 'Off on this server'}
+            tone={data.processing === 'ON' ? 'ok' : 'pending'}
+          />
+        )}
         {data?.schemaVersion && (
           <StatusRow label="Schema version" value={data.schemaVersion} tone="pending" />
         )}
