@@ -13,7 +13,14 @@ export function AppLayout() {
           </Link>
           {state.status === 'authenticated' && (
             <div className="flex min-w-0 items-center gap-3">
-              <span className="hidden truncate text-sm text-slate-600 sm:inline">{state.user.email}</span>
+              <Link
+                to="/account"
+                className="truncate text-sm text-slate-600 hover:text-slate-900 hover:underline"
+                aria-label={`Your account (${state.user.email})`}
+              >
+                <span className="hidden sm:inline">{state.user.email}</span>
+                <span className="sm:hidden">Account</span>
+              </Link>
               <button
                 type="button"
                 onClick={() => void logout()}

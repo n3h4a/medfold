@@ -74,6 +74,7 @@ class UserIsolationTest {
             Map.entry("POST /api/v1/auth/refresh", Access.PUBLIC),
             Map.entry("POST /api/v1/auth/logout", Access.PUBLIC),
             Map.entry("GET /api/v1/auth/me", Access.SELF),
+            Map.entry("DELETE /api/v1/account", Access.SELF),
             Map.entry("GET /api/v1/documents", Access.COLLECTION),
             Map.entry("POST /api/v1/documents", Access.COLLECTION),
             Map.entry("GET /api/v1/documents/{id}", Access.OWNED_BY_ID),
@@ -297,7 +298,8 @@ class UserIsolationTest {
 
     @Test
     void selfEndpointsReturnOnlyTheCaller() throws Exception {
-        for (String route : routesWith(Access.SELF)) {
+        // Reads only; deleting one's own account is covered by AccountApiTest.
+        for (String route : routesWith(Access.SELF).stream().filter(r -> r.startsWith("GET ")).toList()) {
             mockMvc.perform(requestFor(route, UUID.randomUUID()).header(HttpHeaders.AUTHORIZATION, "Bearer " + bobToken))
                     .andExpect(status().isOk())
                     .andExpect(result -> assertThat(result.getResponse().getContentAsString())
