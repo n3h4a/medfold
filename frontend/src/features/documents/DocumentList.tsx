@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { documentsApi, type MedicalDocument } from '../../api/documents.ts'
 import { errorMessage } from '../../auth/errors.ts'
-import { displayTitle, formatBytes, formatDate, isInProgress, polling, typeLabel } from './format.ts'
+import { displayTitle, formatBytes, formatDate, isInProgress, polling, timelineGroup, typeLabel } from './format.ts'
 import { StatusPill } from './StatusPill.tsx'
 
 function FileIcon({ mimeType }: { mimeType: string }) {
@@ -63,6 +63,15 @@ function DocumentRow({ document }: { document: MedicalDocument }) {
   )
 }
 
+function groupByMonth(documents: MedicalDocument[]): [string, MedicalDocument[]][] {
+  const groups = new Map<string, MedicalDocument[]>()
+  for (const document of documents) {
+    const key = timelineGroup(document)
+    groups.set(key, [...(groups.get(key) ?? []), document])
+  }
+  return [...groups.entries()]
+}
+
 export function DocumentList() {
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['documents'],
@@ -96,11 +105,19 @@ export function DocumentList() {
       <h2 id="documents-heading" className="mb-2 text-sm font-semibold text-slate-900">
         {data.totalItems} {data.totalItems === 1 ? 'document' : 'documents'}
       </h2>
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        {data.items.map((document) => (
-          <DocumentRow key={document.id} document={document} />
+      {/* The API returns timeline order (record date, newest first; undated last), so groups come out in order. */}
+      <div className="space-y-4">
+        {groupByMonth(data.items).map(([month, documents]) => (
+          <div key={month}>
+            <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">{month}</h3>
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              {documents.map((document) => (
+                <DocumentRow key={document.id} document={document} />
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
     </section>
   )
 }

@@ -5,6 +5,8 @@ import { ProtectedRoute } from '../auth/ProtectedRoute.tsx'
 import { RegisterPage } from '../auth/RegisterPage.tsx'
 import { DocumentDetailPage } from '../features/documents/DocumentDetailPage.tsx'
 import { DocumentsPage } from '../features/documents/DocumentsPage.tsx'
+import { LabsPage, LabTrendPage } from '../features/labs/LabsPages.tsx'
+import { MedicationsPage } from '../features/medications/MedicationsPage.tsx'
 import { SystemStatus } from '../features/status/SystemStatus.tsx'
 import { AppLayout } from './AppLayout.tsx'
 import { NotFoundPage } from './NotFoundPage.tsx'
@@ -25,6 +27,9 @@ export const routes: RouteObject[] = [
         children: [
           { path: '/', element: <DocumentsPage /> },
           { path: '/documents/:id', element: <DocumentDetailPage /> },
+          { path: '/labs', element: <LabsPage /> },
+          { path: '/labs/:testKey', element: <LabTrendPage /> },
+          { path: '/medications', element: <MedicationsPage /> },
           { path: '/status', element: <SystemStatus /> },
         ],
       },

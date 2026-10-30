@@ -23,6 +23,14 @@ public interface LabResultRepository extends Repository<LabResult, UUID> {
     /** One test across all of a user's reports, oldest first, for trends. */
     List<LabResult> findByUserIdAndTestKeyOrderByObservedOnAsc(UUID userId, String testKey);
 
+    /** All of a user's results grouped by test, each group oldest first so its last row is the latest. */
+    @Query("""
+            SELECT r FROM LabResult r
+            WHERE r.userId = :userId
+            ORDER BY r.testKey, r.observedOn ASC NULLS FIRST, r.position
+            """)
+    List<LabResult> findAllForUserByTest(@Param("userId") UUID userId);
+
     @Modifying
     @Query("DELETE FROM LabResult r WHERE r.documentId = :documentId")
     int deleteByDocumentId(@Param("documentId") UUID documentId);

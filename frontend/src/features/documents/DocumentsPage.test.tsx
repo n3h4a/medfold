@@ -207,4 +207,24 @@ describe('uploading', () => {
       polling.intervalMs = 3000
     }
   })
+
+  it('groups documents by the month of the record, undated ones last', async () => {
+    mockApi({
+      'POST /auth/refresh': () => json(200, authResponse()),
+      'GET /documents': () =>
+        json(200, page([
+          doc({ id: 'a', status: 'READY', title: 'Lipid profile', docDate: '2026-03-20' }),
+          doc({ id: 'b', status: 'READY', title: 'Prescription', docDate: '2026-03-02' }),
+          doc({ id: 'c', status: 'READY', title: 'X-ray report', docDate: '2025-11-10' }),
+          doc({ id: 'd', status: 'READY', title: null, originalFilename: 'scan.jpg' }),
+        ])),
+    })
+
+    renderApp('/')
+
+    const headings = await screen.findAllByRole('heading', { level: 3 })
+    expect(headings.map((h) => h.textContent)).toEqual(['March 2026', 'November 2025', 'Date not found'])
+    const march = headings[0].nextElementSibling as HTMLElement
+    expect(within(march).getAllByRole('link').map((l) => l.textContent)).toEqual(['Lipid profile', 'Prescription'])
+  })
 })

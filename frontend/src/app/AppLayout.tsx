@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router'
+import { Link, NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/useAuth.ts'
 
 export function AppLayout() {
@@ -24,6 +24,28 @@ export function AppLayout() {
             </div>
           )}
         </div>
+        {state.status === 'authenticated' && (
+          <nav aria-label="Main" className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 pb-2">
+            {[
+              { to: '/', label: 'Documents', end: true },
+              { to: '/labs', label: 'Test results', end: false },
+              { to: '/medications', label: 'Medicines', end: false },
+            ].map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
       </header>
       <main className="mx-auto max-w-5xl px-4 py-8">
         <Outlet />

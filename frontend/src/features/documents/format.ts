@@ -48,3 +48,10 @@ export const flagLabel: Record<LabFlag, string> = {
 
 /** How often pages check on documents that are being processed. Tests shorten it. */
 export const polling = { intervalMs: 3000 }
+
+const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' })
+
+/** Timeline heading for a document: the month of the record itself, not of the upload. */
+export function timelineGroup(document: MedicalDocument): string {
+  return document.docDate ? monthFormat.format(new Date(`${document.docDate}T00:00:00`)) : 'Date not found'
+}

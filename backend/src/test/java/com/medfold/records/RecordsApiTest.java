@@ -60,10 +60,22 @@ class RecordsApiTest {
     }
 
     private UUID upload() throws Exception {
+        return upload(token);
+    }
+
+    private UUID upload(String asToken) throws Exception {
         byte[] pdf = ("%PDF-1.4\n% records " + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
-        String body = call(multipart("/api/v1/documents").file(new MockMultipartFile("file", "r.pdf", "application/pdf", pdf)))
+        String body = mockMvc.perform(multipart("/api/v1/documents")
+                        .file(new MockMultipartFile("file", "r.pdf", "application/pdf", pdf))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + asToken))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         return UUID.fromString(JsonPath.read(body, "$.id"));
+    }
+
+    private void lab(UUID documentId, UUID owner, String name, String key, String value, LocalDate date) {
+        LabResult r = new LabResult(documentId, owner, 0, name, key, value, "%", "4.0 - 5.6", 1, date);
+        LabFlagCalculator.apply(r);
+        labRepository.save(r);
     }
 
     private void finishJobs(UUID documentId, String documentStatus) {
@@ -146,5 +158,80 @@ class RecordsApiTest {
 
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM processing_jobs WHERE document_id = ?", Integer.class, id))
                 .isEqualTo(2);
+    }
+
+    @Test
+    void labTestsListEachTestOnceWithItsLatestValueAndTrendsAreOldestFirst() throws Exception {
+        UUID older = upload();
+        UUID newer = upload();
+        UUID undated = upload();
+        lab(newer, user.getId(), "HbA1c", "hba1c", "6.1", LocalDate.of(2026, 6, 1));
+        lab(older, user.getId(), "Glycated Haemoglobin (HbA1c)", "hba1c", "5.4", LocalDate.of(2025, 6, 1));
+        lab(undated, user.getId(), "HbA1c", "hba1c", "5.9", null);
+        lab(older, user.getId(), "Fasting glucose", "fasting_glucose", "92", LocalDate.of(2025, 6, 1));
+
+        call(get("/api/v1/labs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].testKey").value("fasting_glucose"))
+                .andExpect(jsonPath("$[1].testKey").value("hba1c"))
+                .andExpect(jsonPath("$[1].testName").value("HbA1c"))
+                .andExpect(jsonPath("$[1].resultCount").value(3))
+                .andExpect(jsonPath("$[1].latestValueText").value("6.1"))
+                .andExpect(jsonPath("$[1].latestFlag").value("HIGH"))
+                .andExpect(jsonPath("$[1].latestObservedOn").value("2026-06-01"))
+                .andExpect(jsonPath("$[1].latestDocumentId").value(newer.toString()));
+
+        call(get("/api/v1/labs/hba1c"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.testName").value("HbA1c"))
+                .andExpect(jsonPath("$.results.length()").value(3))
+                .andExpect(jsonPath("$.results[0].valueText").value("5.4"))
+                .andExpect(jsonPath("$.results[0].flag").value("NORMAL"))
+                .andExpect(jsonPath("$.results[1].valueText").value("6.1"))
+                .andExpect(jsonPath("$.results[2].observedOn").doesNotExist());
+    }
+
+    @Test
+    void labsAndMedicinesOnlyEverShowTheCallersOwnResults() throws Exception {
+        User other = userRepository.saveAndFlush(new User("other-" + UUID.randomUUID() + "@example.com", "h", null));
+        UUID othersDocument = upload(jwtService.issueAccessToken(other).value());
+        lab(othersDocument, other.getId(), "HbA1c", "hba1c", "9.9", LocalDate.of(2026, 1, 1));
+        medicationRepository.saveAll(List.of(new Medication(othersDocument, other.getId(), 0, "Secret pill", null, null,
+                null, null, null, null)));
+        UUID mine = upload();
+        lab(mine, user.getId(), "HbA1c", "hba1c", "5.2", LocalDate.of(2026, 2, 1));
+
+        call(get("/api/v1/labs"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].resultCount").value(1))
+                .andExpect(jsonPath("$[0].latestValueText").value("5.2"));
+        call(get("/api/v1/labs/hba1c"))
+                .andExpect(jsonPath("$.results.length()").value(1))
+                .andExpect(jsonPath("$.results[0].valueText").value("5.2"));
+        call(get("/api/v1/medications")).andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void aTestWithoutResultsIs404() throws Exception {
+        call(get("/api/v1/labs/ldl_cholesterol"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("LAB_TEST_NOT_FOUND"));
+    }
+
+    @Test
+    void medicinesAreListedMostRecentlyPrescribedFirst() throws Exception {
+        UUID id = upload();
+        medicationRepository.saveAll(List.of(
+                new Medication(id, user.getId(), 0, "Old medicine", null, null, null, null, null, LocalDate.of(2024, 1, 1)),
+                new Medication(id, user.getId(), 1, "Undated medicine", null, null, null, null, null, null),
+                new Medication(id, user.getId(), 2, "New medicine", "5 mg", "0-0-1", null, null, null, LocalDate.of(2026, 1, 1))));
+
+        call(get("/api/v1/medications"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("New medicine"))
+                .andExpect(jsonPath("$[0].documentId").value(id.toString()))
+                .andExpect(jsonPath("$[1].name").value("Old medicine"))
+                .andExpect(jsonPath("$[2].name").value("Undated medicine"));
     }
 }
