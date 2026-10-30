@@ -336,4 +336,6 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 - **One worker instance processes 3 jobs per 2s cycle, one after another.** Enough for personal use; more instances can run safely (SKIP LOCKED).
 - **English OCR only** (`OCR_LANGUAGES=eng`). Other Tesseract languages can be added via config and packages.
 - **The AI service Docker image wasn't built in the cloud sandbox** (Debian mirror blocked there). It builds on a normal machine.
-- **From checkpoint 1:** no refresh-token cleanup job; backend and frontend not in Docker Compose yet; no CORS config (the dev proxy makes it unnecessary).
+- **No CORS config,** by design: the Vite dev proxy and nginx in Docker Compose both serve the SPA and `/api` from one origin.
+- **Since checkpoint 3:** search (task 31), editing (32–34), refresh-token cleanup and the full Docker Compose setup (35) are done; the checkpoint 4 recap will document them.
+- **The frontend and backend images weren't built end to end in the cloud sandbox** (package registries are unreachable from Docker builds there). Their runtime stages were verified with locally built artifacts: backend migrates and serves, nginx serves the SPA and proxies `/api`.

@@ -11,7 +11,17 @@ Architecture and current status: [docs/architecture.md](docs/architecture.md)
 - Node.js 20+
 - Python 3.12+ and Tesseract OCR (only to run the AI service outside Docker)
 
-## Run locally
+## Run everything with Docker
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+Open http://localhost:3000. Set real values for `POSTGRES_PASSWORD`, `JWT_SECRET` and `AI_INTERNAL_KEY` in `.env` first.
+nginx serves the app and forwards `/api` to the backend; uploads are kept in the `medfold_uploads` volume.
+
+## Run locally for development
 
 ```bash
 cp .env.example .env
