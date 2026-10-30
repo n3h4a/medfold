@@ -32,6 +32,7 @@ def health(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
         "service": "medfold-ai-service",
         "status": "UP",
         "ocrProvider": settings.ocr_provider,
+        "ocrLanguages": settings.ocr_languages,
         "tesseractAvailable": version is not None,
         "tesseractVersion": version,
         "internalKeyConfigured": bool(settings.ai_internal_key),

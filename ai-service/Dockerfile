@@ -1,8 +1,9 @@
 FROM python:3.12-slim
 
-# Tesseract OCR (English) + Poppler (PDF -> image, used in later tasks)
+# Tesseract OCR with English and orientation detection. PDF pages are rendered with pypdfium2
+# (bundled in the Python wheel), so no Poppler is needed.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng poppler-utils \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-osd \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
