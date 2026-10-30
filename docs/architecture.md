@@ -7,7 +7,7 @@ Living document, updated at every 10-task checkpoint.
 | 1 | 1–10 | Setup and authentication |
 | 2 | 11–20 | Documents end to end, OCR, extraction contract |
 | 3 | 21–30 | LLM extraction, processing pipeline, timeline |
-| **4 (current, 31–36 done)** | **31–40** | **Search, editing extracted data, operations** |
+| **4 (current)** | **31–40** | **Search, editing, account control, operations and security** |
 
 ---
 
@@ -27,6 +27,7 @@ flowchart LR
         DOCS["document/<br/>upload · list · get · status · file · delete<br/>reprocess · edit details"]
         RECORDS["records/<br/>results · labs · trends · medicines<br/>edit/remove rows · LabFlagCalculator"]
         SEARCH["search/<br/>every word, owner-scoped SQL"]
+        ACCOUNT["account/<br/>export · delete"]
         STORE["storage/<br/>StorageService"]
         WORKER["processing/<br/>job queue + worker"]
         AICLIENT["ai/<br/>AiServiceClient"]
@@ -47,6 +48,7 @@ flowchart LR
     SEC --> DOCS --> DB
     SEC --> RECORDS --> DB
     SEC --> SEARCH --> DB
+    SEC --> ACCOUNT --> DB
     DOCS --> STORE --> FILES
     DOCS -- "enqueue (same transaction)" --> DB
     WORKER -- "claim: FOR UPDATE SKIP LOCKED" --> DB
@@ -175,8 +177,18 @@ A document matches when **every word** appears somewhere in it: title, summary, 
 
 The trend chart plots values in the unit of the latest result. Unit spellings count as one unit (`g/dL` = `gm/dl`, `µmol/L` = `umol/l`, `/cumm` = `/µL`). A short, explicit list of standard conversions is applied per test key: glucose, cholesterol (total/LDL/HDL), triglycerides, creatinine, uric acid, urea, haemoglobin (g/dL ↔ g/L), vitamin D, and HbA1c (% ↔ mmol/mol, IFCC–NGSP master equation). Converted points say "printed as …". Anything else is never converted and stays table-only, and tables always show values exactly as printed.
 
+### Account control
+
+- **`GET /account/export`** returns one JSON file (`medfold-export-v1`): the account, then for every document its details, page text (with source and confidence), lab results, medicines and terms. It is sent as an attachment with `no-store`. Original files are not embedded; each stays downloadable from its document.
+- **`DELETE /account`** needs the current password. Deleting the user row cascades in one transaction to sessions, documents and everything extracted from them. Uploaded files are removed after commit (`StorageService.deleteAllForUser`); a failure there is logged, never leaving a half-deleted account. The refresh cookie is cleared.
+
+### Password guessing (`LoginThrottle`)
+
+Wrong passwords are counted in a 15-minute sliding window: **5 per account, 30 per client address**. Past either limit, attempts get `429 TOO_MANY_ATTEMPTS` with `Retry-After` before any password is checked. Unknown emails count exactly like real ones, so the limit reveals nothing about which accounts exist. A successful login clears the account's count, not the address's. The password confirmation for account deletion is limited the same way. Behind nginx the client address comes from `X-Forwarded-For`, trusted only from internal proxy addresses (`server.forward-headers-strategy: native`).
+
 ### Operations
 
+- **Health:** `GET /health` also reports `aiService` (`UP`, `DOWN`, `NOT_CONFIGURED`, from `/v1/ping` with 2s timeouts, remembered for 10s) and `processing` (`ON`/`OFF`). Neither changes the overall status: without the AI service the API works and documents wait in the queue.
 - **Refresh-token cleanup:** a daily job deletes tokens one day after they expire. Revoked tokens are kept until then, because presenting one again is how reuse is detected.
 - **Images:** the backend is built with the Maven wrapper and runs on a JRE as a non-root user; the frontend is built with Vite and served by nginx (SPA fallback, immutable hashed assets, 11 MB upload limit).
 
@@ -280,7 +292,7 @@ No migrations were needed for checkpoint 4: search reads existing columns, and `
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | `/health` | public | backend, database, schema version |
+| GET | `/health` | public | backend, database, schema version, AI service, processing on/off |
 | POST | `/auth/register`, `/auth/login` | public | start session |
 | POST | `/auth/refresh`, `/auth/logout` | refresh cookie | rotate / revoke |
 | GET | `/auth/me` | self | current user |
@@ -299,6 +311,8 @@ No migrations were needed for checkpoint 4: search reads existing columns, and `
 | PATCH, DELETE | `/lab-results/{id}` | owned | correct or remove a lab result |
 | PATCH, DELETE | `/medications/{id}` | owned | correct or remove a medicine |
 | GET | `/search?q=` | collection | documents containing every word, with snippets (≤ 50) |
+| GET | `/account/export` | self | all of the user's data as a JSON download |
+| DELETE | `/account` | self | delete the account and everything in it (password required) |
 
 ### Internal AI service (`X-Internal-Api-Key`)
 
@@ -323,7 +337,8 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 | `/labs` | **Test results**: every test with its latest value |
 | `/labs/:testKey` | **Trend**: line chart (dated numeric values in the latest unit, standard conversions labelled "printed as …", latest printed range shaded) and a table of every value as printed, linking to its report |
 | `/medications` | **Medicines** as written, with their source document |
-| `/status` | system status |
+| `/account` | **Your account** (from the email in the header): download your data, delete the account |
+| `/status` | system status: backend, database, AI service, document processing |
 
 ---
 
@@ -331,9 +346,9 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 
 | Module | Command | Tests | Highlights |
 |---|---|---|---|
-| backend | `./mvnw test` (Docker needed) | 205 | route-driven user isolation (now also attacking another user's lab result and medicine), SKIP LOCKED race, upload → worker → stub AI service on a real port → database, AI error mapping and timeouts, 38 flag cases, search escaping and isolation, corrections surviving reprocessing |
+| backend | `./mvnw test` (Docker needed) | 220 | route-driven user isolation (now also attacking another user's lab result and medicine), SKIP LOCKED race, upload → worker → stub AI service on a real port → database, AI error mapping and timeouts, 38 flag cases, search escaping and isolation, corrections surviving reprocessing, account deletion emptying every table and folder, login throttling |
 | ai-service | `pytest` | 139 (7 need Tesseract) | PDFs generated in memory, real Tesseract on rendered text, schema safety scan, scripted LLM and fake SDK, 32 safety phrasings, prompt injection |
-| frontend | `npm test` | 79 | upload queue concurrency, XHR token refresh, viewer states, polling until ready, results and trends, unit conversions, search, editing forms, reprocess |
+| frontend | `npm test` | 86 | upload queue concurrency, XHR token refresh, viewer states, polling until ready, results and trends, unit conversions, search, editing forms, reprocess, export and account deletion |
 
 ---
 
@@ -367,6 +382,10 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 | 34 | Frontend: editing forms, Edit / Remove on results | `9785dee` |
 | 35 | Refresh-token cleanup; backend and frontend in Docker Compose | `a87ea55` |
 | 36 | Trend charts across units with standard conversions | `65d2551` |
+| 37 | Delete account and everything in it | `470ee20` |
+| 38 | Download all data as JSON | `b13a570` |
+| 39 | AI service availability on the status page | `8878c8d` |
+| 40 | Login and account-deletion throttling | `35ea90c` |
 
 ---
 
@@ -376,6 +395,8 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 - **Unit conversion covers a fixed list of tests** (see *Trend units*); other unit changes leave values table-only. Units that are numerically identical under different names (e.g. µIU/mL and mIU/L for TSH) are not yet recognised.
 - **Search is substring matching** without ranking or typo tolerance; fine for one person's records.
 - **Corrected rows are matched to new readings by test key or medicine name only.** A corrected row whose name was changed to something new can sit next to a fresh reading of the original line after reprocessing.
+- **Login throttling counts are in memory,** per backend instance; a restart forgives. Enough for one instance; several instances would need a shared store (e.g. the database).
+- **The data export doesn't embed original files;** they're downloaded per document.
 - **One worker instance processes 3 jobs per 2s cycle, one after another.** Enough for personal use; more instances can run safely (SKIP LOCKED).
 - **English OCR only** (`OCR_LANGUAGES=eng`). Other Tesseract languages can be added via config and packages.
 - **The AI service Docker image wasn't built in the cloud sandbox** (Debian mirror blocked there). It builds on a normal machine.
