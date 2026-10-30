@@ -2,6 +2,7 @@ package com.medfold.account;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -29,8 +30,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import com.jayway.jsonpath.JsonPath;
+import com.medfold.document.DocumentPage;
+import com.medfold.document.DocumentPageRepository;
+import com.medfold.document.TextSource;
 import com.medfold.records.LabResult;
 import com.medfold.records.LabResultRepository;
+import com.medfold.records.Medication;
+import com.medfold.records.MedicationRepository;
 import com.medfold.storage.StorageProperties;
 import com.medfold.support.TestcontainersConfiguration;
 
@@ -44,6 +50,8 @@ class AccountApiTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private LabResultRepository labRepository;
+    @Autowired private DocumentPageRepository pageRepository;
+    @Autowired private MedicationRepository medicationRepository;
     @Autowired private StorageProperties storageProperties;
 
     private record Account(UUID id, String token) {
@@ -124,5 +132,32 @@ class AccountApiTest {
 
         assertThat(count("documents", account.id())).isEqualTo(1);
         assertThat(Files.isDirectory(userFolder(account.id()))).isTrue();
+    }
+
+    @Test
+    void exportContainsEverythingOfTheUserAndNothingOfOthers() throws Exception {
+        Account me = register();
+        Account other = register();
+        UUID mine = uploadWithResults(me);
+        pageRepository.saveAll(List.of(new DocumentPage(mine, me.id(), 1, "HbA1c 6.1 %", TextSource.PDF_TEXT, null, 9)));
+        medicationRepository.saveAll(List.of(new Medication(mine, me.id(), 0, "Metformin 500 mg", null, "1-0-1", null, null,
+                null, null)));
+        uploadWithResults(other);
+
+        mockMvc.perform(get("/api/v1/account/export").header(HttpHeaders.AUTHORIZATION, "Bearer " + me.token()))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("attachment; filename=\"medfold-export-")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("no-store")))
+                .andExpect(jsonPath("$.format").value("medfold-export-v1"))
+                .andExpect(jsonPath("$.exportedAt").exists())
+                .andExpect(jsonPath("$.account.email").value(startsWith("account-")))
+                .andExpect(jsonPath("$.documents.length()").value(1))
+                .andExpect(jsonPath("$.documents[0].document.id").value(mine.toString()))
+                .andExpect(jsonPath("$.documents[0].pages[0].text").value("HbA1c 6.1 %"))
+                .andExpect(jsonPath("$.documents[0].pages[0].source").value("PDF_TEXT"))
+                .andExpect(jsonPath("$.documents[0].labResults[0].testName").value("HbA1c"))
+                .andExpect(jsonPath("$.documents[0].medications[0].name").value("Metformin 500 mg"))
+                .andExpect(jsonPath("$.documents[0].terms").isEmpty())
+                .andExpect(jsonPath("$.documents[0].document.storageKey").doesNotExist());
     }
 }

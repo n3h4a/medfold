@@ -1,14 +1,20 @@
 package com.medfold.account;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.medfold.account.dto.AccountExport;
 import com.medfold.account.dto.DeleteAccountRequest;
 import com.medfold.auth.CurrentUserId;
 import com.medfold.auth.RefreshTokenCookies;
@@ -20,11 +26,25 @@ import jakarta.validation.Valid;
 public class AccountController {
 
     private final AccountService accountService;
+    private final AccountExportService exportService;
     private final RefreshTokenCookies cookies;
 
-    public AccountController(AccountService accountService, RefreshTokenCookies cookies) {
+    public AccountController(AccountService accountService, AccountExportService exportService,
+            RefreshTokenCookies cookies) {
         this.accountService = accountService;
+        this.exportService = exportService;
         this.cookies = cookies;
+    }
+
+    /** All of the user's data as a JSON download. Medical data, so never cached. */
+    @GetMapping("/export")
+    public ResponseEntity<AccountExport> export(@CurrentUserId UUID userId) {
+        AccountExport export = exportService.export(userId);
+        String filename = "medfold-export-" + LocalDate.ofInstant(export.exportedAt(), ZoneOffset.UTC) + ".json";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(filename).build().toString())
+                .cacheControl(CacheControl.noStore().cachePrivate())
+                .body(export);
     }
 
     /** Deletes the account, every document, file and extracted record, and ends the session. */

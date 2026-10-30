@@ -75,6 +75,7 @@ class UserIsolationTest {
             Map.entry("POST /api/v1/auth/logout", Access.PUBLIC),
             Map.entry("GET /api/v1/auth/me", Access.SELF),
             Map.entry("DELETE /api/v1/account", Access.SELF),
+            Map.entry("GET /api/v1/account/export", Access.SELF),
             Map.entry("GET /api/v1/documents", Access.COLLECTION),
             Map.entry("POST /api/v1/documents", Access.COLLECTION),
             Map.entry("GET /api/v1/documents/{id}", Access.OWNED_BY_ID),

@@ -57,4 +57,26 @@ describe('account page', () => {
     expect(confirm).toHaveBeenCalledTimes(2)
     expect(screen.getByRole('heading', { name: 'Your account' })).toBeInTheDocument()
   })
+
+  it('downloads all data as a JSON file', async () => {
+    const fetchMock = mockApi({
+      ...loggedIn,
+      'GET /account/export': () =>
+        new Response('{"format":"medfold-export-v1"}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    })
+    const clicks: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicks.push(this.download)
+    })
+    renderApp('/account')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Download my data' }))
+
+    expect(await screen.findByText('Download started.')).toBeInTheDocument()
+    expect(clicks).toHaveLength(1)
+    expect(clicks[0]).toMatch(/^medfold-export-\d{4}-\d{2}-\d{2}\.json$/)
+    const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/account/export'))
+    expect(new Headers(call?.[1]?.headers).get('Authorization')).toBe('Bearer access-token-1')
+  })
 })
