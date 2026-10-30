@@ -51,6 +51,15 @@ medfold:
     retry-delay: PT30S
     stale-after: PT10M
 
+  ai:
+    # Internal AI service (OCR and extraction). Only the backend calls it.
+    base-url: ${AI_SERVICE_URL:http://localhost:8000}
+    # Same value as the AI service's AI_INTERNAL_KEY.
+    internal-key: ${AI_INTERNAL_KEY:}
+    connect-timeout: PT5S
+    # OCR of a long scan, or an LLM call plus its corrective retry, can take minutes.
+    read-timeout: PT5M
+
   storage:
     # Local folder for uploaded files (relative to backend/). Swapped for object storage in production.
     root: ${STORAGE_ROOT:../data/uploads}
