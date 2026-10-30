@@ -78,7 +78,8 @@ class UserIsolationTest {
             Map.entry("DELETE /api/v1/documents/{id}", Access.OWNED_BY_ID),
             Map.entry("GET /api/v1/labs", Access.COLLECTION),
             Map.entry("GET /api/v1/labs/{testKey}", Access.COLLECTION),
-            Map.entry("GET /api/v1/medications", Access.COLLECTION));
+            Map.entry("GET /api/v1/medications", Access.COLLECTION),
+            Map.entry("GET /api/v1/search", Access.COLLECTION));
 
     @Autowired
     private MockMvc mockMvc;

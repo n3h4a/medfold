@@ -1,5 +1,7 @@
 package com.medfold.document;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,6 +35,8 @@ public interface DocumentRepository extends Repository<Document, UUID> {
             ORDER BY d.docDate DESC NULLS LAST, d.createdAt DESC
             """)
     Page<Document> findTimeline(@Param("userId") UUID userId, Pageable pageable);
+
+    List<Document> findByUserIdAndIdIn(UUID userId, Collection<UUID> ids);
 
     long countByUserId(UUID userId);
 }

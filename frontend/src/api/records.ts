@@ -1,5 +1,5 @@
 import { apiGet } from './client.ts'
-import type { LabFlag, LabResult, Medication } from './documents.ts'
+import type { LabFlag, LabResult, MedicalDocument, Medication } from './documents.ts'
 
 /** One test the user has results for, with its most recent value. */
 export interface LabTestSummary {
@@ -20,8 +20,16 @@ export interface LabTrend {
   results: LabResult[]
 }
 
+/** A document matching every search word; snippet is page text around the first word, if the text matched. */
+export interface SearchResult {
+  document: MedicalDocument
+  snippet: string | null
+  pageNumber: number | null
+}
+
 export const recordsApi = {
   labTests: () => apiGet<LabTestSummary[]>('/labs'),
   labTrend: (testKey: string) => apiGet<LabTrend>(`/labs/${encodeURIComponent(testKey)}`),
   medications: () => apiGet<Medication[]>('/medications'),
+  search: (q: string) => apiGet<SearchResult[]>(`/search?q=${encodeURIComponent(q)}`),
 }

@@ -227,4 +227,47 @@ describe('uploading', () => {
     const march = headings[0].nextElementSibling as HTMLElement
     expect(within(march).getAllByRole('link').map((l) => l.textContent)).toEqual(['Lipid profile', 'Prescription'])
   })
+
+  it('searches across documents and goes back to the list when the search is cleared', async () => {
+    mockApi({
+      'POST /auth/refresh': () => json(200, authResponse()),
+      'GET /documents': () => json(200, page([doc({ status: 'READY', title: 'Lipid profile' })])),
+      'GET /search': () =>
+        json(200, [
+          {
+            document: doc({ id: 'doc-9', status: 'READY', title: 'Complete Blood Count', docType: 'LAB_REPORT' }),
+            snippet: '…Haemoglobin 12.1 g/dL…',
+            pageNumber: 2,
+          },
+        ]),
+    })
+    const user = userEvent.setup()
+    renderApp('/')
+    expect(await screen.findByText('Lipid profile')).toBeInTheDocument()
+
+    const box = screen.getByRole('searchbox', { name: 'Search your documents' })
+    await user.type(box, 'haemo')
+
+    expect(await screen.findByRole('link', { name: 'Complete Blood Count' })).toHaveAttribute('href', '/documents/doc-9')
+    expect(screen.getByText('1 match')).toBeInTheDocument()
+    expect(screen.getByText('…Haemoglobin 12.1 g/dL…')).toBeInTheDocument()
+    expect(screen.getByText('Page 2:')).toBeInTheDocument()
+    expect(screen.queryByText('Lipid profile')).not.toBeInTheDocument()
+
+    await user.clear(box)
+    expect(await screen.findByText('Lipid profile')).toBeInTheDocument()
+  })
+
+  it('says when nothing matches', async () => {
+    mockApi({
+      'POST /auth/refresh': () => json(200, authResponse()),
+      'GET /search': () => json(200, []),
+    })
+    const user = userEvent.setup()
+    renderApp('/')
+
+    await user.type(await screen.findByRole('searchbox'), 'zzz')
+
+    expect(await screen.findByText('Nothing found for “zzz”')).toBeInTheDocument()
+  })
 })
