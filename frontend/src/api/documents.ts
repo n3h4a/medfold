@@ -5,6 +5,7 @@ import {
   apiGet,
   apiGetBlob,
   apiPost,
+  apiRequest,
   parseText,
   withAuthRecovery,
   type RawResponse,
@@ -88,6 +89,30 @@ export interface DocumentStatusResponse {
   failureReason: string | null
 }
 
+/** Corrections: a field left out is unchanged, an empty string clears it. */
+export interface DocumentUpdate {
+  docType?: DocumentType
+  docDate?: string
+  title?: string
+  providerName?: string
+  facilityName?: string
+  summary?: string
+}
+
+export type LabResultUpdate = Partial<Pick<LabResult, 'testName' | 'valueText'>> & {
+  unit?: string
+  refText?: string
+}
+
+export type MedicationUpdate = {
+  name?: string
+  dosage?: string
+  frequency?: string
+  route?: string
+  duration?: string
+  instructions?: string
+}
+
 export interface PageResponse<T> {
   items: T[]
   page: number
@@ -103,6 +128,14 @@ export const documentsApi = {
   file: (id: string) => apiGetBlob(`/documents/${id}/file`),
   results: (id: string) => apiGet<DocumentResults>(`/documents/${id}/results`),
   reprocess: (id: string) => apiPost<DocumentStatusResponse>(`/documents/${id}/reprocess`),
+  update: (id: string, changes: DocumentUpdate) =>
+    apiRequest<MedicalDocument>(`/documents/${id}`, { method: 'PATCH', body: changes }),
+  updateLabResult: (id: string, changes: LabResultUpdate) =>
+    apiRequest<LabResult>(`/lab-results/${id}`, { method: 'PATCH', body: changes }),
+  removeLabResult: (id: string) => apiDelete(`/lab-results/${id}`),
+  updateMedication: (id: string, changes: MedicationUpdate) =>
+    apiRequest<Medication>(`/medications/${id}`, { method: 'PATCH', body: changes }),
+  removeMedication: (id: string) => apiDelete(`/medications/${id}`),
 }
 
 interface UploadOptions {

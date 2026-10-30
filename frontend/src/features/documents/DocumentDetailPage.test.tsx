@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { DocumentResults, MedicalDocument } from '../../api/documents.ts'
@@ -297,5 +297,104 @@ describe('document detail page', () => {
 
     expect(confirm).toHaveBeenCalledTimes(2)
     expect(reprocessCalls()).toHaveLength(1)
+  })
+
+  it('corrects document details and shows a field error from the server', async () => {
+    let current = doc()
+    const bodies: unknown[] = []
+    mockApi({
+      ...loggedIn,
+      'GET /documents/doc-1': () => json(200, current),
+      'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'GET /documents/doc-1/results': () => json(200, noResults),
+      'PATCH /documents/doc-1': (init) => {
+        const body = JSON.parse(String(init?.body))
+        bodies.push(body)
+        if (body.title === 'bad') {
+          return json(400, { status: 400, code: 'VALIDATION_ERROR', message: 'Some fields are invalid', fields: { docDate: 'The record date can\'t be in the future' } })
+        }
+        current = doc({ title: body.title, providerName: null, userEdited: true })
+        return json(200, current)
+      },
+    })
+    const user = userEvent.setup()
+    renderApp('/documents/doc-1')
+
+    await user.click(await screen.findByRole('button', { name: 'Edit details' }))
+    const form = screen.getByRole('form', { name: 'Edit document details' })
+    const title = within(form).getByLabelText('Title')
+    await user.clear(title)
+    await user.type(title, 'bad')
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
+    expect(await within(form).findByText("The record date can't be in the future")).toBeInTheDocument()
+
+    await user.clear(title)
+    await user.type(title, 'Full blood count')
+    await user.clear(within(form).getByLabelText('Doctor'))
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('heading', { name: 'Full blood count' })).toBeInTheDocument()
+    expect(screen.getByText('Edited by you')).toBeInTheDocument()
+    expect(bodies[1]).toEqual({
+      docType: 'LAB_REPORT',
+      docDate: '2025-03-14',
+      title: 'Full blood count',
+      providerName: '',
+      facilityName: 'City Diagnostics',
+      summary: 'Blood count report listing haemoglobin and white cell values.',
+    })
+  })
+
+  it('corrects a misread lab value in place', async () => {
+    let results = cbcResults
+    let patched: unknown = null
+    mockApi({
+      ...loggedIn,
+      'GET /documents/doc-1': () => json(200, doc()),
+      'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'GET /documents/doc-1/results': () => json(200, results),
+      'PATCH /lab-results/lab-1': (init) => {
+        patched = JSON.parse(String(init?.body))
+        const fixed = { ...cbcResults.labResults[0], valueText: '14.1', valueNumeric: 14.1, flag: 'NORMAL' as const, userEdited: true }
+        results = { ...cbcResults, labResults: [fixed, ...cbcResults.labResults.slice(1)] }
+        return json(200, fixed)
+      },
+    })
+    const user = userEvent.setup()
+    renderApp('/documents/doc-1')
+
+    await user.click(await screen.findByRole('button', { name: 'Edit Haemoglobin' }))
+    const form = screen.getByRole('form', { name: 'Edit Haemoglobin' })
+    const value = within(form).getByLabelText('Result')
+    await user.clear(value)
+    await user.type(value, '14.1')
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
+
+    const row = (await screen.findByText('14.1')).closest('tr') as HTMLElement
+    expect(within(row).getByText('Within printed range')).toBeInTheDocument()
+    expect(within(row).getByText('Edited')).toBeInTheDocument()
+    expect(patched).toEqual({ testName: 'Haemoglobin', valueText: '14.1', unit: 'g/dL', refText: '13.0 - 17.0' })
+  })
+
+  it('removes a wrongly read medicine after confirming', async () => {
+    let removed = false
+    mockApi({
+      ...loggedIn,
+      'GET /documents/doc-1': () => json(200, doc()),
+      'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'GET /documents/doc-1/results': () => json(200, removed ? { ...cbcResults, medications: [] } : cbcResults),
+      'DELETE /medications/med-1': () => {
+        removed = true
+        return new Response(null, { status: 204 })
+      },
+    })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
+    renderApp('/documents/doc-1')
+
+    await user.click(await screen.findByRole('button', { name: 'Remove Ferrous sulfate 200 mg' }))
+
+    await waitFor(() => expect(screen.queryByText('Ferrous sulfate 200 mg')).not.toBeInTheDocument())
+    expect(removed).toBe(true)
   })
 })

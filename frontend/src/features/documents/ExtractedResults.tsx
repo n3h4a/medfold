@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { documentsApi, type LabFlag, type LabResult, type MedicalDocument, type Medication } from '../../api/documents.ts'
 import { retryUnlessClientError } from '../../api/retry.ts'
 import { errorMessage } from '../../auth/errors.ts'
+import { LabResultForm, MedicationForm } from './EditForms.tsx'
+import { smallButton, useRemove } from './editing.ts'
 import { flagLabel } from './format.ts'
 
 const flagClasses: Record<LabFlag, string> = {
@@ -32,6 +34,68 @@ function Card({ id, title, children }: { id: string; title: string; children: Re
   )
 }
 
+function EditedMark({ show }: { show: boolean }) {
+  return show ? <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-normal text-slate-600">Edited</span> : null
+}
+
+function RowActions({ name, onEdit, onRemove, removing }: { name: string; onEdit: () => void; onRemove: () => void; removing: boolean }) {
+  return (
+    <span className="flex justify-end gap-1">
+      <button type="button" onClick={onEdit} aria-label={`Edit ${name}`} className={smallButton}>
+        Edit
+      </button>
+      <button
+        type="button"
+        disabled={removing}
+        onClick={() => {
+          if (window.confirm(`Remove "${name}" from this document's results?`)) onRemove()
+        }}
+        aria-label={`Remove ${name}`}
+        className={smallButton}
+      >
+        Remove
+      </button>
+    </span>
+  )
+}
+
+function LabRow({ result }: { result: LabResult }) {
+  const [editing, setEditing] = useState(false)
+  const remove = useRemove(() => documentsApi.removeLabResult(result.id))
+
+  if (editing) {
+    return (
+      <tr>
+        <td colSpan={5}>
+          <LabResultForm result={result} onDone={() => setEditing(false)} />
+        </td>
+      </tr>
+    )
+  }
+  return (
+    <tr>
+      <th scope="row" className="px-4 py-2 font-medium text-slate-900">
+        <Link to={`/labs/${encodeURIComponent(result.testKey)}`} className="hover:text-brand-700 hover:underline">
+          {result.testName}
+        </Link>
+        <EditedMark show={result.userEdited} />
+      </th>
+      <td className="whitespace-nowrap px-4 py-2 text-slate-900">
+        {result.valueText}
+        {result.unit && <span className="ml-1 text-slate-500">{result.unit}</span>}
+      </td>
+      <td className="whitespace-nowrap px-4 py-2 text-slate-600">{result.refText ?? '—'}</td>
+      <td className="px-4 py-2">
+        <FlagBadge flag={result.flag} />
+      </td>
+      <td className="px-4 py-2">
+        <RowActions name={result.testName} onEdit={() => setEditing(true)} onRemove={() => remove.mutate()} removing={remove.isPending} />
+        {remove.isError && <span className="block text-xs text-red-700">{errorMessage(remove.error)}</span>}
+      </td>
+    </tr>
+  )
+}
+
 function LabTable({ results }: { results: LabResult[] }) {
   return (
     <Card id="labs-heading" title="Test results">
@@ -43,34 +107,48 @@ function LabTable({ results }: { results: LabResult[] }) {
               <th scope="col" className="px-4 py-2 font-medium">Result</th>
               <th scope="col" className="px-4 py-2 font-medium">Reference range</th>
               <th scope="col" className="px-4 py-2 font-medium">Compared with range</th>
+              <th scope="col" className="px-4 py-2 font-medium"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {results.map((r) => (
-              <tr key={r.id}>
-                <th scope="row" className="px-4 py-2 font-medium text-slate-900">
-                  <Link to={`/labs/${encodeURIComponent(r.testKey)}`} className="hover:text-brand-700 hover:underline">
-                    {r.testName}
-                  </Link>
-                </th>
-                <td className="whitespace-nowrap px-4 py-2 text-slate-900">
-                  {r.valueText}
-                  {r.unit && <span className="ml-1 text-slate-500">{r.unit}</span>}
-                </td>
-                <td className="whitespace-nowrap px-4 py-2 text-slate-600">{r.refText ?? '—'}</td>
-                <td className="px-4 py-2">
-                  <FlagBadge flag={r.flag} />
-                </td>
-              </tr>
+              <LabRow key={r.id} result={r} />
             ))}
           </tbody>
         </table>
       </div>
       <p className="mt-3 text-xs text-slate-500">
         Values are copied from the report. The comparison uses the reference range printed on the same report and is
-        not a medical judgment. Check the original if something looks wrong.
+        not a medical judgment. Check the original if something looks wrong, and correct it with Edit.
       </p>
     </Card>
+  )
+}
+
+function MedicationItem({ medication: m }: { medication: Medication }) {
+  const [editing, setEditing] = useState(false)
+  const remove = useRemove(() => documentsApi.removeMedication(m.id))
+  if (editing) {
+    return (
+      <li className="py-2">
+        <MedicationForm medication={m} onDone={() => setEditing(false)} />
+      </li>
+    )
+  }
+  const details = [m.dosage, m.frequency, m.route, m.duration].filter(Boolean).join(' · ')
+  return (
+    <li className="flex items-start gap-2 py-2">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-slate-900">
+          {m.name}
+          <EditedMark show={m.userEdited} />
+        </p>
+        {details && <p className="text-sm text-slate-600">{details}</p>}
+        {m.instructions && <p className="text-sm text-slate-500">{m.instructions}</p>}
+        {remove.isError && <p className="text-xs text-red-700">{errorMessage(remove.error)}</p>}
+      </div>
+      <RowActions name={m.name} onEdit={() => setEditing(true)} onRemove={() => remove.mutate()} removing={remove.isPending} />
+    </li>
   )
 }
 
@@ -78,16 +156,9 @@ function MedicationList({ medications }: { medications: Medication[] }) {
   return (
     <Card id="medications-heading" title="Medicines">
       <ul className="mt-2 divide-y divide-slate-100">
-        {medications.map((m) => {
-          const details = [m.dosage, m.frequency, m.route, m.duration].filter(Boolean).join(' · ')
-          return (
-            <li key={m.id} className="py-2">
-              <p className="text-sm font-medium text-slate-900">{m.name}</p>
-              {details && <p className="text-sm text-slate-600">{details}</p>}
-              {m.instructions && <p className="text-sm text-slate-500">{m.instructions}</p>}
-            </li>
-          )
-        })}
+        {medications.map((m) => (
+          <MedicationItem key={m.id} medication={m} />
+        ))}
       </ul>
       <p className="mt-3 text-xs text-slate-500">As written on the document. Follow your doctor's instructions.</p>
     </Card>

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client.ts'
 import { documentsApi, type MedicalDocument } from '../../api/documents.ts'
@@ -6,6 +7,7 @@ import { retryUnlessClientError } from '../../api/retry.ts'
 import { errorMessage } from '../../auth/errors.ts'
 import { FullPageSpinner } from '../../components/FullPageSpinner.tsx'
 import { FileViewer } from './FileViewer.tsx'
+import { DocumentDetailsForm } from './EditForms.tsx'
 import { ExtractedResults } from './ExtractedResults.tsx'
 import { displayTitle, formatBytes, formatDate, isInProgress, polling, typeLabel } from './format.ts'
 import { StatusPill } from './StatusPill.tsx'
@@ -52,11 +54,32 @@ function DetailsPanel({ document }: { document: MedicalDocument }) {
     },
   })
   const reprocess = useReprocess(document)
+  const [editing, setEditing] = useState(false)
   const title = displayTitle(document)
+
+  if (editing) {
+    return (
+      <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <DocumentDetailsForm document={document} onDone={() => setEditing(false)} />
+      </aside>
+    )
+  }
 
   return (
     <aside className="space-y-4">
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-500">{document.userEdited ? 'Edited by you' : 'Read from the document'}</span>
+          {!isInProgress(document.status) && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="rounded px-1.5 py-0.5 text-sm font-medium text-brand-700 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              Edit details
+            </button>
+          )}
+        </div>
         <dl className="divide-y divide-slate-100">
           <Field label="Document type" value={document.docType ? typeLabel[document.docType] : null} />
           <Field label="Record date" value={document.docDate ? formatDate(document.docDate) : null} />
