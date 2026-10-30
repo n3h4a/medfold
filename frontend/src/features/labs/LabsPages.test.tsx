@@ -70,12 +70,14 @@ describe('test results', () => {
     renderApp('/labs/hba1c')
 
     const chart = await screen.findByRole('img', {
-      name: new RegExp(`HbA1c: 2 values from ${formatDate('2025-06-01')} to ${formatDate('2026-06-01')}`),
+      name: new RegExp(`HbA1c: 3 values from ${formatDate('2024-01-01')} to ${formatDate('2026-06-01')}`),
     })
     expect(chart).toBeInTheDocument()
     expect(screen.getByLabelText(`${formatDate('2026-06-01')}: 6.1 %`)).toBeInTheDocument()
     expect(screen.getByText(/reference range printed on the latest report \(4.0 - 5.6\)/)).toBeInTheDocument()
-    expect(screen.getByText(/2 result\(s\) without a date, a number or with a different unit/)).toBeInTheDocument()
+    expect(screen.getByLabelText(`${formatDate('2024-01-01')}: 5.99 % (printed as 42 mmol/mol)`)).toBeInTheDocument()
+    expect(screen.getByText(/1 value\(s\) printed in another unit are converted to % for the chart/)).toBeInTheDocument()
+    expect(screen.getByText(/1 result\(s\) without a date, a number or a convertible unit/)).toBeInTheDocument()
 
     const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1)
     expect(rows).toHaveLength(4)
@@ -107,12 +109,23 @@ describe('test results', () => {
 })
 
 describe('trend points', () => {
-  it('keeps dated numeric values in the latest unit, oldest first', () => {
-    const { points, unit, skipped } = plottablePoints(hba1cTrend.results)
+  it('keeps dated numeric values in the latest unit, converting standard units, oldest first', () => {
+    const { points, unit, skipped, converted } = plottablePoints(hba1cTrend.results)
 
     expect(unit).toBe('%')
-    expect(points.map((p) => p.value)).toEqual([5.4, 6.1])
-    expect(skipped).toBe(2)
+    expect(points.map((p) => Number(p.value.toFixed(2)))).toEqual([5.99, 5.4, 6.1])
+    expect(points.map((p) => p.converted)).toEqual([true, false, false])
+    expect(converted).toBe(1)
+    expect(skipped).toBe(1)
+  })
+
+  it('leaves out values in a unit it has no standard conversion for', () => {
+    const { points, skipped } = plottablePoints([
+      lab({ id: 'a', testKey: 'tsh', unit: 'uIU/mL', valueNumeric: 2.1, observedOn: '2025-01-01' }),
+      lab({ id: 'b', testKey: 'tsh', unit: 'mIU/L', valueNumeric: 2.4, observedOn: '2026-01-01' }),
+    ])
+    expect(points.map((p) => p.value)).toEqual([2.4])
+    expect(skipped).toBe(1)
   })
 
   it('has nothing to plot without numbers', () => {

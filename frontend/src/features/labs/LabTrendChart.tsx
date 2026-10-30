@@ -1,13 +1,13 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { LabResult } from '../../api/documents.ts'
 import { formatDate } from '../documents/format.ts'
-import { plottablePoints } from './trendPoints.ts'
+import { formatConverted, plottablePoints, type Point } from './trendPoints.ts'
 
 // Validated single-series color (lightness, chroma and contrast on the white card surface).
 const LINE = '#009c8c'
 const DEFAULT_WIDTH = 600
 const HEIGHT = 220
-const TOOLTIP = { width: 140, height: 38 }
+const TOOLTIP = { width: 170, height: 38, convertedHeight: 54 }
 
 /** Draws at the container's real pixel width so text stays 11-12px on phones and wide screens alike. */
 function useWidth() {
@@ -41,7 +41,7 @@ function niceTicks(min: number, max: number): number[] {
 export function LabTrendChart({ testName, results }: { testName: string; results: LabResult[] }) {
   const [active, setActive] = useState<number | null>(null)
   const { ref, width: WIDTH } = useWidth()
-  const { points, unit, skipped } = plottablePoints(results)
+  const { points, unit, skipped, converted } = plottablePoints(results)
   if (points.length < 2) return null
 
   const latest = points[points.length - 1].result
@@ -65,7 +65,10 @@ export function LabTrendChart({ testName, results }: { testName: string; results
   const bandBottom = y(band.low ?? yMin)
   const hasBand = band.low !== null || band.high !== null
   const unitLabel = unit ? ` ${unit}` : ''
+  const shown = (p: Point) => (p.converted ? `${formatConverted(p.value)}${unitLabel}` : `${p.result.valueText}${unitLabel}`)
+  const printed = (p: Point) => `${p.result.valueText}${p.result.unit ? ` ${p.result.unit}` : ''}`
   const activePoint = active === null ? null : points[active]
+  const tooltipHeight = activePoint?.converted ? TOOLTIP.convertedHeight : TOOLTIP.height
 
   return (
     <figure className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -120,7 +123,7 @@ export function LabTrendChart({ testName, results }: { testName: string; results
                 r={14}
                 fill="transparent"
                 tabIndex={0}
-                aria-label={`${formatDate(p.result.observedOn as string)}: ${p.result.valueText}${unitLabel}`}
+                aria-label={`${formatDate(p.result.observedOn as string)}: ${shown(p)}${p.converted ? ` (printed as ${printed(p)})` : ''}`}
                 onMouseEnter={() => setActive(i)}
                 onFocus={() => setActive(i)}
                 onBlur={() => setActive(null)}
@@ -133,25 +136,35 @@ export function LabTrendChart({ testName, results }: { testName: string; results
               transform={`translate(${Math.min(Math.max(x(activePoint.time) - TOOLTIP.width / 2, PAD.left), WIDTH - PAD.right - TOOLTIP.width)},${
                 y(activePoint.value) < PAD.top + plotH / 2
                   ? y(activePoint.value) + 12
-                  : y(activePoint.value) - 12 - TOOLTIP.height
+                  : y(activePoint.value) - 12 - tooltipHeight
               })`}
               pointerEvents="none"
             >
-              <rect width={TOOLTIP.width} height={TOOLTIP.height} rx={6} className="fill-white stroke-slate-300" />
+              <rect width={TOOLTIP.width} height={tooltipHeight} rx={6} className="fill-white stroke-slate-300" />
               <text x={10} y={16} className="fill-slate-500 text-[11px]">
                 {formatDate(activePoint.result.observedOn as string)}
               </text>
               <text x={10} y={31} className="fill-slate-900 text-[12px] font-semibold">
-                {activePoint.result.valueText}
-                {unitLabel}
+                {shown(activePoint)}
               </text>
+              {activePoint.converted && (
+                <text x={10} y={47} className="fill-slate-500 text-[11px]">
+                  printed as {printed(activePoint)}
+                </text>
+              )}
             </g>
           )}
         </svg>
       </div>
       <p className="mt-2 text-xs text-slate-500">
         {hasBand && <>Shaded: the reference range printed on the latest report ({latest.refText}). </>}
-        {skipped > 0 && <>{skipped} result(s) without a date, a number or with a different unit are only in the table. </>}
+        {converted > 0 && (
+          <>
+            {converted} value(s) printed in another unit are converted to {unit} for the chart; the table shows them as
+            printed.{' '}
+          </>
+        )}
+        {skipped > 0 && <>{skipped} result(s) without a date, a number or a convertible unit are only in the table. </>}
         Ranges can differ between labs.
       </p>
     </figure>
