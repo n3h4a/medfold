@@ -15,7 +15,7 @@ class ProcessingJobTest {
     private static final Duration DELAY = Duration.ofSeconds(30);
 
     private static ProcessingJob newJob(int maxAttempts) {
-        return new ProcessingJob(UUID.randomUUID(), maxAttempts, NOW);
+        return new ProcessingJob(UUID.randomUUID(), UUID.randomUUID(), maxAttempts, NOW);
     }
 
     @Test

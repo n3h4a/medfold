@@ -34,6 +34,9 @@ public class ProcessingJob {
     @Column(name = "document_id", nullable = false, updatable = false)
     private UUID documentId;
 
+    @Column(name = "user_id", nullable = false, updatable = false)
+    private UUID userId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private JobStatus status = JobStatus.PENDING;
@@ -64,16 +67,20 @@ public class ProcessingJob {
     protected ProcessingJob() {
     }
 
-    public ProcessingJob(UUID documentId, int maxAttempts, Instant runAt) {
+    public ProcessingJob(UUID documentId, UUID userId, int maxAttempts, Instant runAt) {
         if (maxAttempts < 1) {
             throw new IllegalArgumentException("maxAttempts must be at least 1");
         }
         this.documentId = documentId;
+        this.userId = userId;
         this.maxAttempts = maxAttempts;
         this.nextRunAt = runAt;
     }
 
-    /** The worker has taken the job. */
+    /**
+     * The worker has taken the job. In production jobs are claimed in bulk by an atomic SQL update
+     * (see JobQueue.claimDue) that makes the same change; this method is the in-memory equivalent.
+     */
     public void start(Instant now) {
         if (status != JobStatus.PENDING) {
             throw new IllegalStateException("Job " + id + " is " + status + ", expected PENDING");
@@ -121,6 +128,10 @@ public class ProcessingJob {
 
     public UUID getDocumentId() {
         return documentId;
+    }
+
+    public UUID getUserId() {
+        return userId;
     }
 
     public JobStatus getStatus() {

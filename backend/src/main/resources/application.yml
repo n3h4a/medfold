@@ -42,6 +42,15 @@ medfold:
     # Must be true in production (HTTPS). Set false only for plain-HTTP local development.
     cookie-secure: ${REFRESH_COOKIE_SECURE:true}
 
+  processing:
+    # Background worker that sends uploads to the AI service. Off until the AI client is connected.
+    enabled: ${MEDFOLD_PROCESSING_ENABLED:false}
+    poll-interval: PT2S
+    batch-size: 3
+    max-attempts: 3
+    retry-delay: PT30S
+    stale-after: PT10M
+
   storage:
     # Local folder for uploaded files (relative to backend/). Swapped for object storage in production.
     root: ${STORAGE_ROOT:../data/uploads}

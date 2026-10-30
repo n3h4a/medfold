@@ -151,7 +151,7 @@ class ExtractionResultsRepositoryTest {
         labRepository.saveAll(List.of(lab(document, 0, "hba1c", null)));
         medicationRepository.saveAll(List.of(new Medication(document, alice, 0, "Metformin", null, null, null, null, null, null)));
         termRepository.saveAll(List.of(new DocumentTerm(document, alice, 0, "CBC", "A blood test.")));
-        jobRepository.saveAndFlush(new ProcessingJob(document, 3, Instant.now()));
+        jobRepository.saveAndFlush(new ProcessingJob(document, alice, 3, Instant.now()));
         runRepository.save(new ExtractionRun(document, alice, "PDF_TEXT", "mock", "m", "extraction-v1", 1, false, null, null, null, 5, "{}"));
         entityManager.flush();
         entityManager.clear();
@@ -165,20 +165,20 @@ class ExtractionResultsRepositoryTest {
 
     @Test
     void aDocumentCanHaveOnlyOneActiveJob() {
-        jobRepository.saveAndFlush(new ProcessingJob(document, 3, Instant.now()));
+        jobRepository.saveAndFlush(new ProcessingJob(document, alice, 3, Instant.now()));
 
-        assertThatThrownBy(() -> jobRepository.saveAndFlush(new ProcessingJob(document, 3, Instant.now())))
+        assertThatThrownBy(() -> jobRepository.saveAndFlush(new ProcessingJob(document, alice, 3, Instant.now())))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void finishedJobsDontBlockANewOne() {
-        ProcessingJob done = new ProcessingJob(document, 3, Instant.now());
+        ProcessingJob done = new ProcessingJob(document, alice, 3, Instant.now());
         done.start(Instant.now());
         done.complete();
         jobRepository.saveAndFlush(done);
 
-        jobRepository.saveAndFlush(new ProcessingJob(document, 3, Instant.now()));
+        jobRepository.saveAndFlush(new ProcessingJob(document, alice, 3, Instant.now()));
 
         assertThat(jobRepository.countByDocumentId(document)).isEqualTo(2);
         assertThat(jobRepository.findFirstByDocumentIdAndStatusIn(document, List.of(JobStatus.PENDING, JobStatus.RUNNING))).isPresent();

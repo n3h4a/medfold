@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,6 +25,7 @@ import com.medfold.common.ApiException;
 import com.medfold.common.PageResponse;
 import com.medfold.document.dto.DocumentResponse;
 import com.medfold.document.dto.DocumentStatusResponse;
+import com.medfold.processing.JobQueue;
 import com.medfold.storage.StorageService;
 import com.medfold.storage.StoredFile;
 
@@ -36,18 +38,23 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final StorageService storageService;
+    private final JobQueue jobQueue;
+    private final TransactionTemplate transactions;
     private final long maxFileBytes;
 
-    public DocumentService(DocumentRepository documentRepository, StorageService storageService,
-            @Value("${spring.servlet.multipart.max-file-size}") DataSize maxFileSize) {
+    public DocumentService(DocumentRepository documentRepository, StorageService storageService, JobQueue jobQueue,
+            TransactionTemplate transactions, @Value("${spring.servlet.multipart.max-file-size}") DataSize maxFileSize) {
         this.documentRepository = documentRepository;
         this.storageService = storageService;
+        this.jobQueue = jobQueue;
+        this.transactions = transactions;
         this.maxFileBytes = maxFileSize.toBytes();
     }
 
     /**
-     * Validates and stores one uploaded file, then records it as UPLOADED.
+     * Validates and stores one uploaded file, records it as UPLOADED and queues it for processing.
      * The file is written before the database row; if the row can't be saved the file is removed again.
+     * The document and its processing job are saved in one transaction.
      */
     public DocumentResponse upload(UUID userId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -69,7 +76,12 @@ public class DocumentService {
         Document document = new Document(userId, cleanFilename(file.getOriginalFilename(), type), stored.key(),
                 type.mimeType(), stored.sizeBytes(), stored.sha256());
         try {
-            return DocumentResponse.from(documentRepository.saveAndFlush(document));
+            Document saved = transactions.execute(status -> {
+                Document row = documentRepository.saveAndFlush(document);
+                jobQueue.enqueue(row.getId(), userId);
+                return row;
+            });
+            return DocumentResponse.from(saved);
         } catch (DataIntegrityViolationException ex) {
             // The same file was uploaded concurrently and the other request won.
             storageService.delete(stored.key());
