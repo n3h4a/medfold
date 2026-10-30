@@ -1,4 +1,4 @@
-import { API_BASE, ApiError, apiDelete, apiGet, parseText, withAuthRecovery, type RawResponse } from './client.ts'
+import { API_BASE, ApiError, apiDelete, apiGet, apiGetBlob, parseText, withAuthRecovery, type RawResponse } from './client.ts'
 
 export type DocumentStatus = 'UPLOADED' | 'PROCESSING' | 'READY' | 'FAILED'
 export type DocumentType =
@@ -40,6 +40,7 @@ export const documentsApi = {
   list: (page = 0, size = 50) => apiGet<PageResponse<MedicalDocument>>(`/documents?page=${page}&size=${size}`),
   get: (id: string) => apiGet<MedicalDocument>(`/documents/${id}`),
   remove: (id: string) => apiDelete(`/documents/${id}`),
+  file: (id: string) => apiGetBlob(`/documents/${id}/file`),
 }
 
 interface UploadOptions {

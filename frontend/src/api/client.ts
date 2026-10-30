@@ -155,6 +155,24 @@ export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: 'POST', body })
 }
 
+/**
+ * Downloads a binary resource (e.g. an uploaded file) with the access token. Images and iframes
+ * can't send an Authorization header, so files are fetched this way and shown via a blob: URL.
+ */
+export async function apiGetBlob(path: string): Promise<Blob> {
+  const response = await withAuthRecovery(path, async (token) => {
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+    const raw = await fetch(`${API_BASE_URL}${path}`, { headers, credentials: 'same-origin' })
+    const body = raw.ok ? await raw.blob() : parseText(await raw.text())
+    return { status: raw.status, body }
+  })
+  if (response.status < 200 || response.status >= 300) {
+    throw new ApiError(response.status, response.body)
+  }
+  return response.body as Blob
+}
+
 export function apiDelete(path: string): Promise<null> {
   return apiRequest<null>(path, { method: 'DELETE' })
 }

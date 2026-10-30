@@ -1,14 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { documentsApi, type DocumentStatus, type MedicalDocument } from '../../api/documents.ts'
+import { Link } from 'react-router'
+import { documentsApi, type MedicalDocument } from '../../api/documents.ts'
 import { errorMessage } from '../../auth/errors.ts'
-import { displayTitle, formatBytes, formatDate, statusLabel, typeLabel } from './format.ts'
-
-const statusClasses: Record<DocumentStatus, string> = {
-  UPLOADED: 'bg-slate-100 text-slate-700',
-  PROCESSING: 'bg-amber-100 text-amber-800',
-  READY: 'bg-emerald-100 text-emerald-800',
-  FAILED: 'bg-red-100 text-red-800',
-}
+import { displayTitle, formatBytes, formatDate, typeLabel } from './format.ts'
+import { StatusPill } from './StatusPill.tsx'
 
 function FileIcon({ mimeType }: { mimeType: string }) {
   const isPdf = mimeType === 'application/pdf'
@@ -38,16 +33,19 @@ function DocumentRow({ document }: { document: MedicalDocument }) {
   ].filter(Boolean)
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
+    <li className="relative flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
       <FileIcon mimeType={document.mimeType} />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-slate-900">{title}</p>
+        <Link
+          to={`/documents/${document.id}`}
+          className="block truncate font-medium text-slate-900 after:absolute after:inset-0 hover:text-brand-700 focus:outline-none focus-visible:underline"
+        >
+          {title}
+        </Link>
         <p className="truncate text-sm text-slate-500">{meta.join(' · ')}</p>
         {remove.isError && <p className="text-sm text-red-700">{errorMessage(remove.error)}</p>}
       </div>
-      <span className={`hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline ${statusClasses[document.status]}`}>
-        {statusLabel[document.status]}
-      </span>
+      <StatusPill status={document.status} className="hidden sm:inline" />
       <button
         type="button"
         disabled={remove.isPending}
@@ -55,7 +53,7 @@ function DocumentRow({ document }: { document: MedicalDocument }) {
           if (window.confirm(`Delete "${title}"? This cannot be undone.`)) remove.mutate()
         }}
         aria-label={`Delete ${title}`}
-        className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50"
+        className="relative z-10 shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M10 11v6m4-6v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { json, mockApi } from '../test/mockApi.ts'
-import { apiGet, ApiError, getAccessToken, setAccessToken, setSessionHandlers } from './client.ts'
+import { apiGet, apiGetBlob, ApiError, getAccessToken, setAccessToken, setSessionHandlers } from './client.ts'
 
 const invalidToken = () =>
   json(401, { status: 401, code: 'INVALID_TOKEN', message: 'Access token is invalid or expired' })
@@ -104,5 +104,39 @@ describe('apiRequest token recovery', () => {
     expect(handlers.refresh).not.toHaveBeenCalled()
     expect(handlers.onSessionExpired).not.toHaveBeenCalled()
     expect(getAccessToken()).toBeNull()
+  })
+})
+
+describe('apiGetBlob', () => {
+  it('downloads with the token and returns a Blob', async () => {
+    setAccessToken('valid-token')
+    const fetchMock = mockApi({
+      'GET /documents/d/file': () => new Response('%PDF', { status: 200, headers: { 'Content-Type': 'application/pdf' } }),
+    })
+
+    const blob = await apiGetBlob('/documents/d/file')
+
+    expect(blob.type).toBe('application/pdf')
+    expect(await blob.text()).toBe('%PDF')
+    expect(authHeader(fetchMock.mock.calls[0][1])).toBe('Bearer valid-token')
+  })
+
+  it('refreshes an expired token before downloading', async () => {
+    setAccessToken('stale-token')
+    sessionHandlers()
+    mockApi({
+      'GET /documents/d/file': (init) =>
+        authHeader(init) === 'Bearer fresh-token' ? new Response('ok') : invalidToken(),
+    })
+
+    expect(await (await apiGetBlob('/documents/d/file')).text()).toBe('ok')
+  })
+
+  it('throws ApiError with the server code on failure', async () => {
+    setAccessToken('valid-token')
+    mockApi({ 'GET /documents/d/file': () => json(404, { status: 404, code: 'DOCUMENT_NOT_FOUND', message: 'x' }) })
+
+    const error = await apiGetBlob('/documents/d/file').catch((caught: unknown) => caught)
+    expect((error as ApiError).code).toBe('DOCUMENT_NOT_FOUND')
   })
 })

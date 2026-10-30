@@ -8,3 +8,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
   setAccessToken(null)
 })
+
+// jsdom has no object URLs; the file viewer needs them.
+let objectUrlCount = 0
+URL.createObjectURL = () => `blob:test/${++objectUrlCount}`
+URL.revokeObjectURL = () => {}

@@ -3,6 +3,7 @@ import { GuestRoute } from '../auth/GuestRoute.tsx'
 import { LoginPage } from '../auth/LoginPage.tsx'
 import { ProtectedRoute } from '../auth/ProtectedRoute.tsx'
 import { RegisterPage } from '../auth/RegisterPage.tsx'
+import { DocumentDetailPage } from '../features/documents/DocumentDetailPage.tsx'
 import { DocumentsPage } from '../features/documents/DocumentsPage.tsx'
 import { SystemStatus } from '../features/status/SystemStatus.tsx'
 import { AppLayout } from './AppLayout.tsx'
@@ -23,6 +24,7 @@ export const routes: RouteObject[] = [
         element: <ProtectedRoute />,
         children: [
           { path: '/', element: <DocumentsPage /> },
+          { path: '/documents/:id', element: <DocumentDetailPage /> },
           { path: '/status', element: <SystemStatus /> },
         ],
       },
