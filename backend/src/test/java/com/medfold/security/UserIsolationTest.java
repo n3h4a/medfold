@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -33,6 +35,10 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 import com.jayway.jsonpath.JsonPath;
 import com.medfold.auth.JwtService;
+import com.medfold.records.LabResult;
+import com.medfold.records.LabResultRepository;
+import com.medfold.records.Medication;
+import com.medfold.records.MedicationRepository;
 import com.medfold.support.TestcontainersConfiguration;
 import com.medfold.user.User;
 import com.medfold.user.UserRepository;
@@ -76,6 +82,11 @@ class UserIsolationTest {
             Map.entry("GET /api/v1/documents/{id}/results", Access.OWNED_BY_ID),
             Map.entry("POST /api/v1/documents/{id}/reprocess", Access.OWNED_BY_ID),
             Map.entry("DELETE /api/v1/documents/{id}", Access.OWNED_BY_ID),
+            Map.entry("PATCH /api/v1/documents/{id}", Access.OWNED_BY_ID),
+            Map.entry("PATCH /api/v1/lab-results/{id}", Access.OWNED_BY_ID),
+            Map.entry("DELETE /api/v1/lab-results/{id}", Access.OWNED_BY_ID),
+            Map.entry("PATCH /api/v1/medications/{id}", Access.OWNED_BY_ID),
+            Map.entry("DELETE /api/v1/medications/{id}", Access.OWNED_BY_ID),
             Map.entry("GET /api/v1/labs", Access.COLLECTION),
             Map.entry("GET /api/v1/labs/{testKey}", Access.COLLECTION),
             Map.entry("GET /api/v1/medications", Access.COLLECTION),
@@ -103,6 +114,14 @@ class UserIsolationTest {
     private String bobToken;
     private byte[] alicesFileBytes;
     private UUID alicesDocumentId;
+    private UUID alicesLabResultId;
+    private UUID alicesMedicationId;
+
+    @Autowired
+    private LabResultRepository labResultRepository;
+
+    @Autowired
+    private MedicationRepository medicationRepository;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -113,6 +132,10 @@ class UserIsolationTest {
 
         alicesFileBytes = ("%PDF-1.4\n% alice private " + UUID.randomUUID() + "\n%%EOF\n").getBytes(StandardCharsets.UTF_8);
         alicesDocumentId = upload(aliceToken, alicesFileBytes);
+        alicesLabResultId = labResultRepository.save(new LabResult(alicesDocumentId, alice.getId(), 0, "HbA1c", "hba1c",
+                "6.1", "%", "4.0 - 5.6", 1, null)).getId();
+        alicesMedicationId = medicationRepository.saveAll(List.of(new Medication(alicesDocumentId, alice.getId(), 0,
+                "Metformin 500 mg", null, null, null, null, null, null))).getFirst().getId();
     }
 
     /** All /api/v1 routes as "METHOD /path/{var}". */
@@ -146,6 +169,12 @@ class UserIsolationTest {
         if (route.contains("/api/v1/documents/{id}")) {
             return alicesDocumentId;
         }
+        if (route.contains("/api/v1/lab-results/{id}")) {
+            return alicesLabResultId;
+        }
+        if (route.contains("/api/v1/medications/{id}")) {
+            return alicesMedicationId;
+        }
         throw new AssertionError("No owned test resource for " + route
                 + ". Add one in UserIsolationTest.alicesResourceFor so its isolation is tested.");
     }
@@ -174,6 +203,12 @@ class UserIsolationTest {
         return new TreeMap<>(jdbcTemplate.queryForMap("SELECT * FROM documents WHERE id = ?", alicesDocumentId));
     }
 
+    private List<Map<String, Object>> alicesResultRows() {
+        return List.of(
+                new TreeMap<>(jdbcTemplate.queryForMap("SELECT * FROM lab_results WHERE id = ?", alicesLabResultId)),
+                new TreeMap<>(jdbcTemplate.queryForMap("SELECT * FROM medications WHERE id = ?", alicesMedicationId)));
+    }
+
     @Test
     void everyApiEndpointIsClassified() {
         Set<String> actual = apiRoutes();
@@ -189,6 +224,7 @@ class UserIsolationTest {
     @Test
     void anotherUserGetsNotFoundOnEveryOwnedEndpointAndChangesNothing() throws Exception {
         Map<String, Object> before = alicesDocumentRow();
+        List<Map<String, Object>> resultsBefore = alicesResultRows();
 
         for (String route : routesWith(Access.OWNED_BY_ID)) {
             UUID target = alicesResourceFor(route);
@@ -202,6 +238,7 @@ class UserIsolationTest {
         }
 
         assertThat(alicesDocumentRow()).as("Alice's document row after Bob's attempts").isEqualTo(before);
+        assertThat(alicesResultRows()).as("Alice's lab result and medicine after Bob's attempts").isEqualTo(resultsBefore);
         mockMvc.perform(get("/api/v1/documents/" + alicesDocumentId + "/file")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + aliceToken))
                 .andExpect(status().isOk())
@@ -217,11 +254,13 @@ class UserIsolationTest {
             mockMvc.perform(requestFor(route, alicesResourceFor(route)).header(HttpHeaders.AUTHORIZATION, "Bearer " + aliceToken))
                     .andExpect(result -> assertThat(result.getResponse().getStatus()).as("Alice calling %s", route).isBetween(200, 299));
         }
-        for (String route : routesWith(Access.OWNED_BY_ID)) {
-            if (route.startsWith("DELETE ")) {
-                mockMvc.perform(requestFor(route, alicesResourceFor(route)).header(HttpHeaders.AUTHORIZATION, "Bearer " + aliceToken))
-                        .andExpect(status().isNoContent());
-            }
+        // Deleting the document cascades to its results, so it goes last.
+        List<String> deletes = routesWith(Access.OWNED_BY_ID).stream().filter(r -> r.startsWith("DELETE "))
+                .sorted(Comparator.comparing((String r) -> r.contains("/documents/")))
+                .toList();
+        for (String route : deletes) {
+            mockMvc.perform(requestFor(route, alicesResourceFor(route)).header(HttpHeaders.AUTHORIZATION, "Bearer " + aliceToken))
+                    .andExpect(status().isNoContent());
         }
     }
 

@@ -85,6 +85,15 @@ public class LabResult {
         this.observedOn = observedOn;
     }
 
+    /** A correction by the user. Kept when the document is processed again. Recompute the flag afterwards. */
+    public void edit(String testName, String valueText, String unit, String refText) {
+        this.testName = testName;
+        this.valueText = valueText;
+        this.unit = unit;
+        this.refText = refText;
+        this.userEdited = true;
+    }
+
     /** Parsed numbers and the resulting flag, filled in by the flag calculator. */
     public void applyComparison(BigDecimal valueNumeric, BigDecimal refLow, BigDecimal refHigh, LabFlag flag) {
         this.valueNumeric = valueNumeric;

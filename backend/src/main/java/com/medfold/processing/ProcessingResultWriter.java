@@ -3,8 +3,11 @@ package com.medfold.processing;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +29,8 @@ import com.medfold.records.MedicationRepository;
 
 /**
  * Saves the outcome of a processing run in one transaction. A new run replaces the previous run's
- * pages, lab results, medicines and terms entirely, so results from two runs are never mixed.
+ * pages, lab results, medicines and terms, so results from two runs are never mixed. Only rows the
+ * user corrected are kept.
  */
 @Service
 public class ProcessingResultWriter {
@@ -66,9 +70,14 @@ public class ProcessingResultWriter {
         ExtractionResult.Extraction extraction = result.extraction();
 
         replacePages(document, ocr);
-        labResultRepository.deleteByDocumentId(documentId);
-        medicationRepository.deleteByDocumentId(documentId);
+        labResultRepository.deleteExtractedByDocumentId(documentId);
+        medicationRepository.deleteExtractedByDocumentId(documentId);
         termRepository.deleteByDocumentId(documentId);
+        // Rows the user corrected stay; a new reading of the same test or medicine doesn't duplicate them.
+        Set<String> correctedTests = labResultRepository.findByDocumentIdAndUserIdOrderByPosition(documentId, userId)
+                .stream().map(LabResult::getTestKey).collect(Collectors.toSet());
+        Set<String> correctedMedicines = medicationRepository.findByDocumentIdAndUserIdOrderByPosition(documentId, userId)
+                .stream().map(m -> m.getName().toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
 
         if (!document.isUserEdited()) {
             document.setDocType(extraction.docType());
@@ -83,6 +92,9 @@ public class ProcessingResultWriter {
 
         List<LabResult> labs = new ArrayList<>();
         for (ExtractionResult.Lab lab : extraction.labResults()) {
+            if (correctedTests.contains(lab.testKey())) {
+                continue;
+            }
             LabResult row = new LabResult(documentId, userId, labs.size(), lab.testName(), lab.testKey(),
                     lab.valueText(), lab.unit(), lab.referenceRangeText(), lab.pageNumber(), recordDate);
             LabFlagCalculator.apply(row);
@@ -92,6 +104,9 @@ public class ProcessingResultWriter {
 
         List<Medication> medicines = new ArrayList<>();
         for (ExtractionResult.Medicine m : extraction.medications()) {
+            if (correctedMedicines.contains(m.name().toLowerCase(Locale.ROOT))) {
+                continue;
+            }
             medicines.add(new Medication(documentId, userId, medicines.size(), m.name(), m.dosage(), m.frequency(),
                     m.route(), m.duration(), m.instructions(), recordDate));
         }
@@ -116,8 +131,8 @@ public class ProcessingResultWriter {
     public void saveOcrOnly(UUID documentId, UUID userId, OcrResult ocr) {
         documentRepository.findByIdAndUserId(documentId, userId).ifPresent(document -> {
             replacePages(document, ocr);
-            labResultRepository.deleteByDocumentId(documentId);
-            medicationRepository.deleteByDocumentId(documentId);
+            labResultRepository.deleteExtractedByDocumentId(documentId);
+            medicationRepository.deleteExtractedByDocumentId(documentId);
             termRepository.deleteByDocumentId(documentId);
         });
     }

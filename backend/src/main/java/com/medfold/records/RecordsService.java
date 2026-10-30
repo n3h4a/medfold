@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -14,8 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.medfold.common.ApiException;
 import com.medfold.document.DocumentRepository;
 import com.medfold.document.DocumentTermRepository;
+import com.medfold.document.Edits;
 import com.medfold.records.dto.DocumentResultsResponse;
 import com.medfold.records.dto.LabResultResponse;
+import com.medfold.records.dto.LabResultUpdateRequest;
+import com.medfold.records.dto.MedicationUpdateRequest;
 import com.medfold.records.dto.LabTestSummary;
 import com.medfold.records.dto.LabTrendResponse;
 import com.medfold.records.dto.MedicationResponse;
@@ -84,6 +88,60 @@ public class RecordsService {
     @Transactional(readOnly = true)
     public List<MedicationResponse> medications(UUID userId) {
         return medicationRepository.findAllForUser(userId).stream().map(MedicationResponse::from).toList();
+    }
+
+    /** Corrects a lab result and recomputes its flag. The correction survives reprocessing. */
+    @Transactional
+    public LabResultResponse updateLabResult(UUID userId, UUID id, LabResultUpdateRequest request) {
+        LabResult result = ownedLabResult(userId, id);
+        String testName = Edits.apply(result.getTestName(), request.testName());
+        String valueText = Edits.apply(result.getValueText(), request.valueText());
+        String unit = Edits.apply(result.getUnit(), request.unit());
+        String refText = Edits.apply(result.getRefText(), request.refText());
+        if (!Objects.equals(testName, result.getTestName()) || !Objects.equals(valueText, result.getValueText())
+                || !Objects.equals(unit, result.getUnit()) || !Objects.equals(refText, result.getRefText())) {
+            result.edit(testName, valueText, unit, refText);
+            LabFlagCalculator.apply(result);
+        }
+        return LabResultResponse.from(result);
+    }
+
+    /** Removes a row the reader got wrong (e.g. a line that isn't a test result). */
+    @Transactional
+    public void deleteLabResult(UUID userId, UUID id) {
+        labResultRepository.delete(ownedLabResult(userId, id));
+    }
+
+    @Transactional
+    public MedicationResponse updateMedication(UUID userId, UUID id, MedicationUpdateRequest request) {
+        Medication m = ownedMedication(userId, id);
+        String name = Edits.apply(m.getName(), request.name());
+        String dosage = Edits.apply(m.getDosage(), request.dosage());
+        String frequency = Edits.apply(m.getFrequency(), request.frequency());
+        String route = Edits.apply(m.getRoute(), request.route());
+        String duration = Edits.apply(m.getDuration(), request.duration());
+        String instructions = Edits.apply(m.getInstructions(), request.instructions());
+        if (!Objects.equals(name, m.getName()) || !Objects.equals(dosage, m.getDosage())
+                || !Objects.equals(frequency, m.getFrequency()) || !Objects.equals(route, m.getRoute())
+                || !Objects.equals(duration, m.getDuration()) || !Objects.equals(instructions, m.getInstructions())) {
+            m.edit(name, dosage, frequency, route, duration, instructions);
+        }
+        return MedicationResponse.from(m);
+    }
+
+    @Transactional
+    public void deleteMedication(UUID userId, UUID id) {
+        medicationRepository.delete(ownedMedication(userId, id));
+    }
+
+    private LabResult ownedLabResult(UUID userId, UUID id) {
+        return labResultRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "LAB_RESULT_NOT_FOUND", "Lab result not found"));
+    }
+
+    private Medication ownedMedication(UUID userId, UUID id) {
+        return medicationRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MEDICATION_NOT_FOUND", "Medicine not found"));
     }
 
     /** Same 404 as DocumentService for a missing or someone else's document. */

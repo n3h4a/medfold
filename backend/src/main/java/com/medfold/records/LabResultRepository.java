@@ -1,6 +1,7 @@
 package com.medfold.records;
 
 import java.util.List;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,6 +31,18 @@ public interface LabResultRepository extends Repository<LabResult, UUID> {
             ORDER BY r.testKey, r.observedOn ASC NULLS FIRST, r.position
             """)
     List<LabResult> findAllForUserByTest(@Param("userId") UUID userId);
+
+    void delete(LabResult entity);
+
+    /** Results are dated by their document; follows a corrected document date. */
+    @Modifying
+    @Query("UPDATE LabResult r SET r.observedOn = :date WHERE r.documentId = :documentId AND r.userId = :userId")
+    int redate(@Param("documentId") UUID documentId, @Param("userId") UUID userId, @Param("date") LocalDate date);
+
+    /** Reprocessing replaces extracted rows but keeps the ones the user corrected. */
+    @Modifying
+    @Query("DELETE FROM LabResult r WHERE r.documentId = :documentId AND r.userEdited = false")
+    int deleteExtractedByDocumentId(@Param("documentId") UUID documentId);
 
     @Modifying
     @Query("DELETE FROM LabResult r WHERE r.documentId = :documentId")

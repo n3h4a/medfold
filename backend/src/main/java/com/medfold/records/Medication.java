@@ -69,6 +69,17 @@ public class Medication {
         this.prescribedOn = prescribedOn;
     }
 
+    /** A correction by the user. Kept when the document is processed again. */
+    public void edit(String name, String dosage, String frequency, String route, String duration, String instructions) {
+        this.name = name;
+        this.dosage = dosage;
+        this.frequency = frequency;
+        this.route = route;
+        this.duration = duration;
+        this.instructions = instructions;
+        this.userEdited = true;
+    }
+
     public UUID getId() {
         return id;
     }

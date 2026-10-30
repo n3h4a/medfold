@@ -3,6 +3,7 @@ package com.medfold.document;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,7 +26,10 @@ import com.medfold.common.ApiException;
 import com.medfold.common.PageResponse;
 import com.medfold.document.dto.DocumentResponse;
 import com.medfold.document.dto.DocumentStatusResponse;
+import com.medfold.document.dto.DocumentUpdateRequest;
 import com.medfold.processing.JobQueue;
+import com.medfold.records.LabResultRepository;
+import com.medfold.records.MedicationRepository;
 import com.medfold.storage.StorageService;
 import com.medfold.storage.StoredFile;
 
@@ -39,14 +43,19 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final StorageService storageService;
     private final JobQueue jobQueue;
+    private final LabResultRepository labResultRepository;
+    private final MedicationRepository medicationRepository;
     private final TransactionTemplate transactions;
     private final long maxFileBytes;
 
     public DocumentService(DocumentRepository documentRepository, StorageService storageService, JobQueue jobQueue,
+            LabResultRepository labResultRepository, MedicationRepository medicationRepository,
             TransactionTemplate transactions, @Value("${spring.servlet.multipart.max-file-size}") DataSize maxFileSize) {
         this.documentRepository = documentRepository;
         this.storageService = storageService;
         this.jobQueue = jobQueue;
+        this.labResultRepository = labResultRepository;
+        this.medicationRepository = medicationRepository;
         this.transactions = transactions;
         this.maxFileBytes = maxFileSize.toBytes();
     }
@@ -109,6 +118,46 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public DocumentStatusResponse status(UUID userId, UUID documentId) {
         return DocumentStatusResponse.from(findOwned(userId, documentId));
+    }
+
+    /**
+     * Applies the user's corrections. Edited details are kept when the document is processed again.
+     * A new record date also re-dates the document's lab results and medicines.
+     */
+    @Transactional
+    public DocumentResponse update(UUID userId, UUID documentId, DocumentUpdateRequest request) {
+        Document document = findOwned(userId, documentId);
+        if (request.docDate() != null && request.docDate().getYear() < 1900) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_DATE", "The record date must be after 1900");
+        }
+        boolean changed = false;
+        if (request.docType() != null && request.docType() != document.getDocType()) {
+            document.setDocType(request.docType());
+            changed = true;
+        }
+        if (request.docDate() != null && !request.docDate().equals(document.getDocDate())) {
+            document.setDocDate(request.docDate());
+            labResultRepository.redate(documentId, userId, request.docDate());
+            medicationRepository.redate(documentId, userId, request.docDate());
+            changed = true;
+        }
+        String title = Edits.apply(document.getTitle(), request.title());
+        String provider = Edits.apply(document.getProviderName(), request.providerName());
+        String facility = Edits.apply(document.getFacilityName(), request.facilityName());
+        String summary = Edits.apply(document.getSummary(), request.summary());
+        if (!Objects.equals(title, document.getTitle()) || !Objects.equals(provider, document.getProviderName())
+                || !Objects.equals(facility, document.getFacilityName())
+                || !Objects.equals(summary, document.getSummary())) {
+            document.setTitle(title);
+            document.setProviderName(provider);
+            document.setFacilityName(facility);
+            document.setSummary(summary);
+            changed = true;
+        }
+        if (changed) {
+            document.setUserEdited(true);
+        }
+        return DocumentResponse.from(documentRepository.saveAndFlush(document));
     }
 
     /**

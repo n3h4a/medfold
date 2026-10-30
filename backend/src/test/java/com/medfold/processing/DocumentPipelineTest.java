@@ -30,6 +30,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.jayway.jsonpath.JsonPath;
 import com.medfold.auth.JwtService;
@@ -138,6 +139,7 @@ class DocumentPipelineTest {
     @Autowired private JobRunner runner;
     @Autowired private JobQueue queue;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private TransactionTemplate transactions;
 
     private User user;
 
@@ -254,6 +256,30 @@ class DocumentPipelineTest {
         assertThat(termRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId())).hasSize(1);
         assertThat(pageRepository.findByDocumentIdAndUserIdOrderByPageNumber(id, user.getId())).hasSize(2);
         assertThat(runRepository.countByDocumentId(id)).isEqualTo(2);
+    }
+
+    @Test
+    void reprocessingKeepsResultsTheUserCorrectedWithoutDuplicatingThem() throws Exception {
+        replies.put("/v1/ocr", new Reply(200, OCR_TWO_PAGES));
+        replies.put("/v1/extract", new Reply(200, extraction("CBC", "Haemoglobin", "1.35")));
+        UUID id = upload();
+        runner.runDue();
+        LabResult misread = labRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId()).getFirst();
+        transactions.executeWithoutResult(status -> {
+            LabResult row = labRepository.findByIdAndUserId(misread.getId(), user.getId()).orElseThrow();
+            row.edit("Haemoglobin", "13.5", "g/dL", "13.0 - 17.0");
+        });
+
+        replies.put("/v1/extract", new Reply(200, extraction("CBC", "Haemoglobin", "1.35")));
+        reprocess(id);
+
+        assertThat(labRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId()))
+                .singleElement().satisfies(lab -> {
+                    assertThat(lab.getId()).isEqualTo(misread.getId());
+                    assertThat(lab.getValueText()).isEqualTo("13.5");
+                    assertThat(lab.isUserEdited()).isTrue();
+                });
+        assertThat(medicationRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId())).hasSize(1);
     }
 
     @Test

@@ -12,9 +12,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +26,9 @@ import com.medfold.auth.CurrentUserId;
 import com.medfold.common.PageResponse;
 import com.medfold.document.dto.DocumentResponse;
 import com.medfold.document.dto.DocumentStatusResponse;
+import com.medfold.document.dto.DocumentUpdateRequest;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/documents")
@@ -52,6 +57,13 @@ public class DocumentController {
     @GetMapping("/{id}")
     public DocumentResponse get(@CurrentUserId UUID userId, @PathVariable UUID id) {
         return documentService.get(userId, id);
+    }
+
+    /** Corrects extracted details; fields left out are unchanged. */
+    @PatchMapping("/{id}")
+    public DocumentResponse update(@CurrentUserId UUID userId, @PathVariable UUID id,
+            @Valid @RequestBody DocumentUpdateRequest request) {
+        return documentService.update(userId, id, request);
     }
 
     @GetMapping("/{id}/status")
