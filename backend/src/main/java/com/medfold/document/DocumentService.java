@@ -111,6 +111,21 @@ public class DocumentService {
         return DocumentStatusResponse.from(findOwned(userId, documentId));
     }
 
+    /**
+     * Queues the document to be read and extracted again, e.g. after a failure or a better model.
+     * The new results replace the old ones once processing succeeds. Does nothing if the document
+     * is already waiting or being processed.
+     */
+    @Transactional
+    public DocumentStatusResponse reprocess(UUID userId, UUID documentId) {
+        Document document = findOwned(userId, documentId);
+        boolean queued = jobQueue.enqueue(documentId, userId);
+        if (queued && document.getStatus() != DocumentStatus.PROCESSING) {
+            document.markProcessing();
+        }
+        return DocumentStatusResponse.from(document);
+    }
+
     public record DocumentFile(Resource resource, String mimeType, String filename) {
     }
 

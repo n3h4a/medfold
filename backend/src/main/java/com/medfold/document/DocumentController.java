@@ -59,6 +59,12 @@ public class DocumentController {
         return documentService.status(userId, id);
     }
 
+    /** Reads and extracts the document again. 202: the work happens in the background; poll /status. */
+    @PostMapping("/{id}/reprocess")
+    public ResponseEntity<DocumentStatusResponse> reprocess(@CurrentUserId UUID userId, @PathVariable UUID id) {
+        return ResponseEntity.accepted().body(documentService.reprocess(userId, id));
+    }
+
     /**
      * Streams the original file for viewing in the browser. Medical files must not be cached by
      * shared caches or kept on disk by the browser.

@@ -73,6 +73,8 @@ class UserIsolationTest {
             Map.entry("GET /api/v1/documents/{id}", Access.OWNED_BY_ID),
             Map.entry("GET /api/v1/documents/{id}/status", Access.OWNED_BY_ID),
             Map.entry("GET /api/v1/documents/{id}/file", Access.OWNED_BY_ID),
+            Map.entry("GET /api/v1/documents/{id}/results", Access.OWNED_BY_ID),
+            Map.entry("POST /api/v1/documents/{id}/reprocess", Access.OWNED_BY_ID),
             Map.entry("DELETE /api/v1/documents/{id}", Access.OWNED_BY_ID));
 
     @Autowired
