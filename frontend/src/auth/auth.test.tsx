@@ -85,6 +85,27 @@ describe('login', () => {
     expect(screen.getByRole('button', { name: 'Log in' })).toBeEnabled()
   })
 
+  it('tells the user to wait after too many failed attempts', async () => {
+    mockApi({
+      'POST /auth/refresh': noSession,
+      'POST /auth/login': () =>
+        json(429, {
+          status: 429,
+          code: 'TOO_MANY_ATTEMPTS',
+          message: 'Too many failed attempts. Try again in 15 minutes',
+          details: { retryAfterSeconds: 850 },
+        }),
+    })
+    renderApp('/login')
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByLabelText('Email'), 'asha@example.com')
+    await user.type(screen.getByLabelText('Password'), 'any-password')
+    await user.click(screen.getByRole('button', { name: 'Log in' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Too many failed attempts. Try again in 15 minutes')
+  })
+
   it('shows a friendly message when the backend is unreachable', async () => {
     mockApi({ 'POST /auth/refresh': noSession })
     renderApp('/login')

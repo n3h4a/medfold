@@ -25,6 +25,9 @@ spring:
 
 server:
   port: ${BACKEND_PORT:8080}
+  # Behind nginx (Docker Compose), take the client address from X-Forwarded-For, trusted only
+  # from internal proxy addresses. Login throttling counts per client address.
+  forward-headers-strategy: native
   tomcat:
     # Read (and discard) oversized uploads up to this size so the client gets a clean 413
     # instead of a connection reset.
@@ -41,6 +44,12 @@ medfold:
     cookie-name: medfold_refresh
     # Must be true in production (HTTPS). Set false only for plain-HTTP local development.
     cookie-secure: ${REFRESH_COOKIE_SECURE:true}
+
+  login-throttle:
+    # Wrong passwords allowed within the window before attempts are refused (429).
+    max-failures-per-account: 5
+    max-failures-per-address: 30
+    window: PT15M
 
   processing:
     # Background worker that sends uploads to the AI service. Turn off on instances that should only serve the API.

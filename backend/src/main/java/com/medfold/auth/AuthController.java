@@ -20,6 +20,7 @@ import com.medfold.common.ApiError;
 import com.medfold.common.ApiException;
 import com.medfold.user.dto.UserResponse;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -28,10 +29,12 @@ public class AuthController {
 
     private final AuthService authService;
     private final RefreshTokenCookies cookies;
+    private final LoginThrottle throttle;
 
-    public AuthController(AuthService authService, RefreshTokenCookies cookies) {
+    public AuthController(AuthService authService, RefreshTokenCookies cookies, LoginThrottle throttle) {
         this.authService = authService;
         this.cookies = cookies;
+        this.throttle = throttle;
     }
 
     @PostMapping("/register")
@@ -40,8 +43,21 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return withRefreshCookie(HttpStatus.OK, authService.login(request));
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+        String account = LoginThrottle.accountKey(request.email());
+        String address = LoginThrottle.addressKey(http.getRemoteAddr());
+        throttle.check(account, address);
+        AuthService.AuthSession session;
+        try {
+            session = authService.login(request);
+        } catch (ApiException ex) {
+            if ("INVALID_CREDENTIALS".equals(ex.getCode())) {
+                throttle.recordFailure(account, address);
+            }
+            throw ex;
+        }
+        throttle.recordSuccess(account);
+        return withRefreshCookie(HttpStatus.OK, session);
     }
 
     /** Uses the refresh-token cookie, so it works even after the access token has expired. */
@@ -72,7 +88,8 @@ public class AuthController {
         if ("INVALID_REFRESH_TOKEN".equals(ex.getCode())) {
             response.header(HttpHeaders.SET_COOKIE, cookies.clear().toString());
         }
-        return response.body(new ApiError(ex.getStatus().value(), ex.getCode(), ex.getMessage()));
+        ex.retryAfterSeconds().ifPresent(seconds -> response.header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds)));
+        return response.body(new ApiError(ex.getStatus().value(), ex.getCode(), ex.getMessage(), null, ex.getDetails()));
     }
 
     private ResponseEntity<AuthResponse> withRefreshCookie(HttpStatus status, AuthService.AuthSession session) {

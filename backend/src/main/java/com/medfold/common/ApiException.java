@@ -1,6 +1,7 @@
 package com.medfold.common;
 
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 
@@ -28,6 +29,13 @@ public class ApiException extends RuntimeException {
 
     public String getCode() {
         return code;
+    }
+
+    /** For rate limits: how long the client should wait, also sent as a Retry-After header. */
+    public Optional<Long> retryAfterSeconds() {
+        return details != null && details.get("retryAfterSeconds") instanceof Number n
+                ? Optional.of(n.longValue())
+                : Optional.empty();
     }
 
     public Map<String, Object> getDetails() {
