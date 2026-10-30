@@ -1,0 +1,26 @@
+{
+  "description": "Synthetic digital lab report (no real patient). Text as returned by /v1/ocr from the PDF text layer.",
+  "pages": [
+    [1, "City Diagnostics Laboratory   Report date: 14 Mar 2025\nSYNTHETIC TEST DOCUMENT — NOT A REAL PATIENT   Ref. by: Dr. A. Mehta\n\nPatient: Test Patient   Age/Sex: 34/F   Sample: Blood\n\nComplete Blood Count (CBC)\n\n Test   Result   Unit   Reference range\n\n Haemoglobin   11.2   g/dL   12.0 – 15.5\n\n Total WBC count   7,400   cells/µL   4,000 – 11,000\n\n Platelet count   2.6   lakh/µL   1.5 – 4.5\n\n HbA1c   6.1   %   4.0 – 5.6\n\nSynthetic sample generated for Medfold development and testing."]
+  ],
+  "expected": {
+    "docType": "LAB_REPORT",
+    "docDate": "2025-03-14",
+    "title": "Complete Blood Count",
+    "providerName": "Dr. A. Mehta",
+    "facilityName": "City Diagnostics Laboratory",
+    "summary": "This is a lab report from City Diagnostics Laboratory dated 14 March 2025, requested by Dr. A. Mehta. It lists the results of a Complete Blood Count done on a blood sample. The report shows haemoglobin, white blood cell count and platelet count, as well as an HbA1c result, each with the laboratory's reference range.",
+    "termsExplained": [
+      {"term": "CBC", "definition": "A Complete Blood Count is a common blood test that measures the different types of cells in the blood."},
+      {"term": "HbA1c", "definition": "HbA1c is a blood test that reflects average blood sugar levels over roughly the past two to three months."},
+      {"term": "WBC", "definition": "WBC stands for white blood cells, the cells of the immune system found in the blood."}
+    ],
+    "labResults": [
+      {"testName": "Haemoglobin", "valueText": "11.2", "unit": "g/dL", "referenceRangeText": "12.0 – 15.5", "pageNumber": 1},
+      {"testName": "Total WBC count", "valueText": "7,400", "unit": "cells/µL", "referenceRangeText": "4,000 – 11,000", "pageNumber": 1},
+      {"testName": "Platelet count", "valueText": "2.6", "unit": "lakh/µL", "referenceRangeText": "1.5 – 4.5", "pageNumber": 1},
+      {"testName": "HbA1c", "valueText": "6.1", "unit": "%", "referenceRangeText": "4.0 – 5.6", "pageNumber": 1}
+    ],
+    "medications": []
+  }
+}
