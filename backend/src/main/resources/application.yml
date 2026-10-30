@@ -43,8 +43,8 @@ medfold:
     cookie-secure: ${REFRESH_COOKIE_SECURE:true}
 
   processing:
-    # Background worker that sends uploads to the AI service. Off until the AI client is connected.
-    enabled: ${MEDFOLD_PROCESSING_ENABLED:false}
+    # Background worker that sends uploads to the AI service. Turn off on instances that should only serve the API.
+    enabled: ${MEDFOLD_PROCESSING_ENABLED:true}
     poll-interval: PT2S
     batch-size: 3
     max-attempts: 3
