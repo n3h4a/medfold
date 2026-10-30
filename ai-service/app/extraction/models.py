@@ -26,6 +26,10 @@ class ExtractionMeta(_Camel):
     duration_ms: int
     input_tokens: int | None = None
     output_tokens: int | None = None
+    safety_filtered: bool = False
+    """True if unsafe wording was replaced or removed after the model's retry also contained it."""
+    safety_issues: list[str] = []
+    """What the safety check found on the final answer, e.g. "summary: ADVICE"."""
 
 
 class ExtractResponse(_Camel):

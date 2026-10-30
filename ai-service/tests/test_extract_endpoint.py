@@ -33,6 +33,7 @@ def test_works_out_of_the_box_with_the_offline_provider(api):
     body = response.json()
     assert body["meta"]["provider"] == "mock"
     assert body["meta"]["promptVersion"] == "extraction-v1"
+    assert body["meta"]["safetyFiltered"] is False and body["meta"]["safetyIssues"] == []
     extraction = body["extraction"]
     assert extraction["docType"] == "LAB_REPORT"
     assert extraction["docDate"] == "2025-03-14"

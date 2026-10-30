@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from app.errors import ServiceError
 from app.extraction.models import ExtractionMeta, ExtractResponse, PageInput
 from app.extraction.prompt import PROMPT_VERSION, system_prompt, user_message
+from app.extraction.safety import check_extraction, sanitize
 from app.extraction.schemas import ExtractionResult, extraction_json_schema
 from app.llm.base import (
     LlmConfigurationError,
@@ -42,9 +43,10 @@ def run_extraction(
     max_attempts: int = 2,
 ) -> ExtractResponse:
     """
-    Asks the model for structured data and validates it against ExtractionResult. If the output is
-    malformed or breaks the schema, the model gets one corrective retry with the validation errors.
-    Output is never trusted: only data that passes validation leaves this function.
+    Asks the model for structured data and validates it against ExtractionResult, then checks its free
+    text for diagnosis, advice or value-judgment wording. Malformed, out-of-schema or unsafe output gets
+    a corrective retry with the problems listed. If the last answer is valid but still unsafe, the unsafe
+    text is replaced or dropped (the extracted data is kept). Only validated data leaves this function.
     """
     usable = [(p.page_number, p.text) for p in sorted(pages, key=lambda p: p.page_number) if p.text.strip()]
     if not usable:
@@ -96,6 +98,18 @@ def run_extraction(
             log.warning("Extraction attempt %d failed validation: %s", attempt, feedback.splitlines()[0])
             continue
 
+        issues = check_extraction(result)
+        if issues and attempt < max_attempts:
+            feedback = (
+                "Some wording breaks the rule to describe the document and never interpret it, judge values "
+                "or give advice:\n" + "\n".join(f"- {issue.describe()}" for issue in issues[:10])
+            )
+            log.warning("Extraction attempt %d failed the safety check: %s", attempt, [i.category.value for i in issues])
+            continue
+        if issues:
+            log.warning("Unsafe wording after final attempt; sanitizing %s", sorted({i.field for i in issues}))
+            result = sanitize(result, issues)
+
         return ExtractResponse(
             extraction=result,
             meta=ExtractionMeta(
@@ -106,6 +120,8 @@ def run_extraction(
                 duration_ms=round((time.monotonic() - started) * 1000),
                 input_tokens=input_tokens or None,
                 output_tokens=output_tokens or None,
+                safety_filtered=bool(issues),
+                safety_issues=[f"{issue.field}: {issue.category.value}" for issue in issues],
             ),
         )
 
