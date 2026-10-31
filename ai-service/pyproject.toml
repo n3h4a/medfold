@@ -35,3 +35,4 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 source = ["app"]
+branch = true

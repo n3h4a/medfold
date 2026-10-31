@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="371" viewBox="0 0 760 371" role="img" aria-label="API latency under load">
+<rect width="760" height="371" rx="12" fill="#ffffff"/>
+<text x="24" y="34" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#0f172a">API latency under load</text>
+<text x="24" y="56" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#475569">20 concurrent users for 60 s, 8,295 requests, 0.00% failed (k6, local stack)</text>
+<rect x="24" y="68" width="12" height="12" rx="3" fill="#8fd3c9"/>
+<text x="42" y="78.5" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#475569">Median</text>
+<rect x="107.2" y="68" width="12" height="12" rx="3" fill="#0f766e"/>
+<text x="125.2" y="78.5" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#475569">95th percentile</text>
+<line x1="150.0" y1="86" x2="150.0" y2="341" stroke="#e2e8f0" stroke-width="1"/>
+<text x="150.0" y="357" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569" text-anchor="middle">0 ms</text>
+<line x1="285.0" y1="86" x2="285.0" y2="341" stroke="#e2e8f0" stroke-width="1"/>
+<text x="285.0" y="357" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569" text-anchor="middle">5 ms</text>
+<line x1="420.0" y1="86" x2="420.0" y2="341" stroke="#e2e8f0" stroke-width="1"/>
+<text x="420.0" y="357" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569" text-anchor="middle">10 ms</text>
+<line x1="555.0" y1="86" x2="555.0" y2="341" stroke="#e2e8f0" stroke-width="1"/>
+<text x="555.0" y="357" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569" text-anchor="middle">15 ms</text>
+<line x1="690.0" y1="86" x2="690.0" y2="341" stroke="#e2e8f0" stroke-width="1"/>
+<text x="690.0" y="357" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569" text-anchor="middle">20 ms</text>
+<text x="138" y="111.5" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#0f172a" text-anchor="end">Trend</text>
+<rect x="150" y="92" width="74.9" height="14" rx="3" fill="#8fd3c9"><title>Trend, Median: 2.8 ms</title></rect>
+<text x="230.9" y="103" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">2.8 ms</text>
+<rect x="150" y="109" width="175.6" height="14" rx="3" fill="#0f766e"><title>Trend, 95th percentile: 6.5 ms</title></rect>
+<text x="331.6" y="120" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">6.5 ms</text>
+<text x="138" y="160.5" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#0f172a" text-anchor="end">Timeline</text>
+<rect x="150" y="141" width="99.7" height="14" rx="3" fill="#8fd3c9"><title>Timeline, Median: 3.7 ms</title></rect>
+<text x="255.7" y="152" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">3.7 ms</text>
+<rect x="150" y="158" width="218.3" height="14" rx="3" fill="#0f766e"><title>Timeline, 95th percentile: 8.1 ms</title></rect>
+<text x="374.3" y="169" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">8.1 ms</text>
+<text x="138" y="209.5" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#0f172a" text-anchor="end">Results</text>
+<rect x="150" y="190" width="121.8" height="14" rx="3" fill="#8fd3c9"><title>Results, Median: 4.5 ms</title></rect>
+<text x="277.8" y="201" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">4.5 ms</text>
+<rect x="150" y="207" width="259.3" height="14" rx="3" fill="#0f766e"><title>Results, 95th percentile: 9.6 ms</title></rect>
+<text x="415.3" y="218" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">9.6 ms</text>
+<text x="138" y="258.5" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#0f172a" text-anchor="end">Search</text>
+<rect x="150" y="239" width="155.3" height="14" rx="3" fill="#8fd3c9"><title>Search, Median: 5.8 ms</title></rect>
+<text x="311.3" y="250" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">5.8 ms</text>
+<rect x="150" y="256" width="297.6" height="14" rx="3" fill="#0f766e"><title>Search, 95th percentile: 11.0 ms</title></rect>
+<text x="453.6" y="267" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">11.0 ms</text>
+<text x="138" y="307.5" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#0f172a" text-anchor="end">Upload</text>
+<rect x="150" y="288" width="328.3" height="14" rx="3" fill="#8fd3c9"><title>Upload, Median: 12.2 ms</title></rect>
+<text x="484.3" y="299" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">12.2 ms</text>
+<rect x="150" y="305" width="424.9" height="14" rx="3" fill="#0f766e"><title>Upload, 95th percentile: 15.7 ms</title></rect>
+<text x="580.9" y="316" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#475569">15.7 ms</text>
+</svg>
