@@ -67,14 +67,12 @@ jobs:
       # Type-checks (tsc -b) and builds the production bundle.
       - run: npm run build
 
-  images:
-    name: Docker images
+  deployment-config:
+    name: Deployment config
     runs-on: ubuntu-latest
-    needs: [backend, ai-service, frontend]
     steps:
       - uses: actions/checkout@v4
       - run: cp .env.example .env
-      - run: docker compose build
       # The production overlay must stay valid too (it refuses to start without real values).
       - run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
         env:
@@ -83,3 +81,30 @@ jobs:
           JWT_SECRET: ci-only-ci-only-ci-only-ci-only-ci-only
           AI_INTERNAL_KEY: ci-only
       - run: bash -n scripts/backup.sh scripts/restore.sh
+
+  e2e:
+    name: End-to-end (Docker stack)
+    runs-on: ubuntu-latest
+    needs: [backend, ai-service, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - name: Start the full stack
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:3000/api/v1/health | grep -q '"aiService":"UP"' && exit 0
+            sleep 2
+          done
+          docker compose logs --tail 100
+          exit 1
+      # Synthetic reports through nginx → backend → AI service, including a photographed
+      # prescription read by Tesseract. Fails if any document isn't processed.
+      - name: Seed demo data
+        run: API_URL=http://localhost:3000/api/v1 WITH_PHOTO=1 scripts/seed-demo-data.sh
+      - name: Run the Postman collection
+        run: npx -y newman@6 run postman/medfold.postman_collection.json -e postman/medfold.docker.postman_environment.json --working-dir .
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 200
+

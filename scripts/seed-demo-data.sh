@@ -50,9 +50,14 @@ for _ in $(seq 1 90); do
   [ "$pending" = "0" ] && break
   sleep 2
 done
+# Prints every document and exits non-zero if any isn't READY (used by CI).
 curl -s "$API_URL/documents?size=100" -H "Authorization: Bearer $token" | python3 -c "
 import json, sys
-for d in json.load(sys.stdin)['items']:
-    print(f\"  {d['status']:<10} {d['docDate'] or '-':<10}  {d['title'] or d['originalFilename']}\")"
+items = json.load(sys.stdin)['items']
+for d in items:
+    reason = f\" ({d['failureReason']})\" if d['failureReason'] else ''
+    print(f\"  {d['status']:<10} {d['docDate'] or '-':<10}  {d['title'] or d['originalFilename']}{reason}\")
+sys.exit(0 if all(d['status'] == 'READY' for d in items) else 1)
+" || { echo "Some documents were not processed." >&2; exit 1; }
 echo
 echo "Log in with $EMAIL / $PASSWORD"
