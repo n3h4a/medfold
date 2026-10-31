@@ -11,8 +11,8 @@ scripts/seed-demo-data.sh     # demo@medfold.local / medfold-demo-2026
 ```
 
 Prerequisites and alternatives (everything in Docker, one service at a time) are in
-[docs/deployment](docs/deployment/README.md). Read [docs/architecture](docs/architecture/README.md)
-first; the [ADRs](docs/decisions/README.md) explain why things are the way they are.
+[docs/06-deployment](docs/06-deployment/README.md). Read [the architecture](docs/03-design/architecture.md)
+first; the [ADRs](docs/03-design/adr/README.md) explain why things are the way they are.
 
 ## Running the checks
 
@@ -28,21 +28,17 @@ npx newman run postman/medfold.postman_collection.json \
 
 ## Conventions
 
-- **Commits** follow [Conventional Commits](https://www.conventionalcommits.org/):
-  `feat(backend): …`, `fix(frontend): …`, `docs: …`, `test: …`, `ci: …`, `chore: …`. The body
-  explains *why*. One logical change per commit.
-- **Branches:** `feat/<topic>`, `fix/<topic>`; pull requests target `main`.
-- **Tests:** new behaviour comes with tests; a bug fix comes with a test that fails without it.
-- **Privacy:** every new user-data table carries `user_id`; repositories expose only owner-scoped
-  queries (no `findById`/`findAll`); every new endpoint must be classified in `UserIsolationTest`.
-- **AI output:** never add a field for diagnosis, risk or advice to the extraction schema; values
-  are copied, comparisons computed by the backend ([ADR-007](docs/decisions/ADR-007-ai-safety-boundary.md)).
-- **Database:** never edit an applied Flyway migration; add a new one
-  ([database/README.md](database/README.md#migrations)).
-- **Errors** use the standard `{status, code, message}` shape with plain-language messages.
-- **Style:** match the surrounding code. Java uses 4 spaces; TypeScript is checked by `oxlint` and
-  `tsc`; Python follows PEP 8.
-- **Big changes:** open an issue first; a design change deserves a new ADR in `docs/decisions/`.
+The full list is in [coding standards](docs/04-development/coding-standards.md). The essentials:
+
+- [Conventional Commits](https://www.conventionalcommits.org/), one logical change per commit,
+  tests passing at every commit; a bug fix includes a test that failed before.
+- Every new endpoint is classified in `UserIsolationTest`; user data is only read through
+  owner-scoped queries.
+- No extraction field for diagnosis, risk or advice ([ADR-007](docs/03-design/adr/ADR-007-ai-safety-boundary.md)).
+- Database changes are new Flyway migrations ([database](database/README.md#migrations)).
+- Design changes come with an [ADR](docs/03-design/adr/README.md).
+
+By participating you agree to the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Reporting bugs and security issues
 
