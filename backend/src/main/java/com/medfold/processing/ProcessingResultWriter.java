@@ -77,7 +77,7 @@ public class ProcessingResultWriter {
         Set<String> correctedTests = labResultRepository.findByDocumentIdAndUserIdOrderByPosition(documentId, userId)
                 .stream().map(LabResult::getTestKey).collect(Collectors.toSet());
         Set<String> correctedMedicines = medicationRepository.findByDocumentIdAndUserIdOrderByPosition(documentId, userId)
-                .stream().map(m -> m.getName().toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
+                .stream().map(m -> m.getExtractedName().toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
 
         if (!document.isUserEdited()) {
             document.setDocType(extraction.docType());

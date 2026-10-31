@@ -31,6 +31,10 @@ public class Medication {
     @Column(nullable = false)
     private String name;
 
+    /** As first read; unchanged by corrections, so reprocessing recognises this medicine. */
+    @Column(name = "extracted_name", nullable = false, updatable = false)
+    private String extractedName;
+
     @Column(length = 100)
     private String dosage;
 
@@ -61,6 +65,7 @@ public class Medication {
         this.userId = userId;
         this.position = position;
         this.name = name;
+        this.extractedName = name;
         this.dosage = dosage;
         this.frequency = frequency;
         this.route = route;
@@ -98,6 +103,10 @@ public class Medication {
 
     public String getName() {
         return name;
+    }
+
+    public String getExtractedName() {
+        return extractedName;
     }
 
     public String getDosage() {

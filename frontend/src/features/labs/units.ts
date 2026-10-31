@@ -19,6 +19,15 @@ const SPELLINGS: Record<string, string> = {
   'nmol/l': 'nmol/l',
   'g/l': 'g/l',
   '%': '%',
+  // Equal by definition, whatever the test: 1 µIU/mL = 1 mIU/L, 1 IU/L = 1 U/L,
+  // 1 pg/mL = 1 ng/L, 1 ng/mL = 1 µg/L.
+  'uiu/ml': 'miu/l',
+  'miu/l': 'miu/l',
+  'iu/l': 'u/l',
+  'u/l': 'u/l',
+  'pg/ml': 'ng/l',
+  'ng/l': 'ng/l',
+  'ug/l': 'ng/ml',
   // Per microlitre: a cubic millimetre is a microlitre.
   '/cumm': '/ul',
   '/cmm': '/ul',
@@ -39,7 +48,13 @@ const SPELLINGS: Record<string, string> = {
 /** A canonical form for comparing units: case, spaces and µ/μ/u spellings don't matter. */
 export function normalizeUnit(unit: string | null): string | null {
   if (unit === null) return null
-  const compact = unit.toLowerCase().replace(/\s+/g, '').replace(/[µμ]/g, 'u').replace(/\*/g, '^').replace(/³/g, '3')
+  const compact = unit
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[µμ]/g, 'u')
+    .replace(/mcg/g, 'ug')
+    .replace(/\*/g, '^')
+    .replace(/³/g, '3')
   return SPELLINGS[compact] ?? compact
 }
 
@@ -58,6 +73,8 @@ function linear(from: string, to: string, factor: number): Conversion[] {
 }
 
 const GLUCOSE = linear('mg/dl', 'mmol/l', 1 / 18.016)
+// For ions with a charge of one, a milliequivalent is a millimole.
+const MONOVALENT_ION = linear('meq/l', 'mmol/l', 1)
 const CHOLESTEROL = linear('mg/dl', 'mmol/l', 1 / 38.67)
 
 /** Standard conversions per canonical test key (see the AI service's lab_keys.py). */
@@ -74,6 +91,8 @@ const CONVERSIONS: Record<string, Conversion[]> = {
   urea: linear('mg/dl', 'mmol/l', 1 / 6.006),
   haemoglobin: linear('g/dl', 'g/l', 10),
   vitamin_d: linear('ng/ml', 'nmol/l', 2.496),
+  sodium: MONOVALENT_ION,
+  potassium: MONOVALENT_ION,
   // IFCC–NGSP master equation: mmol/mol = (% − 2.152) × 10.929.
   hba1c: [
     { from: '%', to: 'mmol/mol', convert: (v) => (v - 2.152) * 10.929 },

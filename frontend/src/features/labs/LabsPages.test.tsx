@@ -121,7 +121,7 @@ describe('trend points', () => {
 
   it('leaves out values in a unit it has no standard conversion for', () => {
     const { points, skipped } = plottablePoints([
-      lab({ id: 'a', testKey: 'tsh', unit: 'uIU/mL', valueNumeric: 2.1, observedOn: '2025-01-01' }),
+      lab({ id: 'a', testKey: 'tsh', unit: 'ng/dL', valueNumeric: 2.1, observedOn: '2025-01-01' }),
       lab({ id: 'b', testKey: 'tsh', unit: 'mIU/L', valueNumeric: 2.4, observedOn: '2026-01-01' }),
     ])
     expect(points.map((p) => p.value)).toEqual([2.4])

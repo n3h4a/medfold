@@ -13,7 +13,14 @@ describe('normalizeUnit', () => {
     ['cells/mm³', '/ul'],
     ['x10*9/L', '10^3/ul'],
     ['Thou/cumm', '10^3/ul'],
-    ['IU/L', 'iu/l'],
+    ['IU/L', 'u/l'],
+    ['U/L', 'u/l'],
+    ['µIU/mL', 'miu/l'],
+    ['mIU/L', 'miu/l'],
+    ['pg/mL', 'ng/l'],
+    ['mcg/L', 'ng/ml'],
+    ['ng/mL', 'ng/ml'],
+    ['mcg/dL', 'ug/dl'],
   ])('%s → %s', (unit, expected) => {
     expect(normalizeUnit(unit)).toBe(expected)
   })
@@ -39,8 +46,17 @@ describe('toUnit', () => {
     close(toUnit('hba1c', 48, 'mmol/mol', '%'), 6.544)
   })
 
+  it('treats units that are equal by definition as the same unit', () => {
+    expect(toUnit('tsh', 2.1, 'µIU/mL', 'mIU/L')).toBe(2.1)
+    expect(toUnit('alt', 34, 'IU/L', 'U/L')).toBe(34)
+    expect(toUnit('vitamin_b12', 410, 'pg/mL', 'ng/L')).toBe(410)
+    expect(toUnit('ferritin', 80, 'mcg/L', 'ng/mL')).toBe(80)
+    expect(toUnit('sodium', 140, 'mEq/L', 'mmol/L')).toBe(140)
+  })
+
   it('never guesses: unknown tests, unknown pairs and missing units give null', () => {
-    expect(toUnit('tsh', 2, 'uIU/mL', 'mIU/L')).toBeNull()
+    expect(toUnit('tsh', 2, 'uIU/mL', 'ng/dL')).toBeNull()
+    expect(toUnit('calcium', 4.8, 'mEq/L', 'mmol/L')).toBeNull()
     expect(toUnit('glucose_fasting', 90, 'mg/dL', 'g/L')).toBeNull()
     expect(toUnit('haemoglobin', 90, 'mg/dL', 'mmol/L')).toBeNull()
     expect(toUnit('glucose_fasting', 90, null, 'mmol/L')).toBeNull()

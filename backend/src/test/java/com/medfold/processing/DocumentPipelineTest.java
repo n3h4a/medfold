@@ -283,6 +283,33 @@ class DocumentPipelineTest {
     }
 
     @Test
+    void renamedCorrectionsAreStillRecognisedWhenReprocessing() throws Exception {
+        replies.put("/v1/ocr", new Reply(200, OCR_TWO_PAGES));
+        replies.put("/v1/extract", new Reply(200, extraction("CBC", "Haemoglobin", "13.5")));
+        UUID id = upload();
+        runner.runDue();
+        Medication medicine = medicationRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId()).getFirst();
+        LabResult lab = labRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId()).getFirst();
+        transactions.executeWithoutResult(status -> {
+            medicationRepository.findByIdAndUserId(medicine.getId(), user.getId()).orElseThrow()
+                    .edit("Ferrous sulphate 200 mg (iron)", "200 mg", "1-0-0", null, "30 days", "after food");
+            labRepository.findByIdAndUserId(lab.getId(), user.getId()).orElseThrow()
+                    .edit("Hb (my label)", "13.5", "g/dL", "13.0 - 17.0");
+        });
+
+        reprocess(id);
+
+        assertThat(medicationRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId()))
+                .singleElement().satisfies(m -> {
+                    assertThat(m.getId()).isEqualTo(medicine.getId());
+                    assertThat(m.getName()).isEqualTo("Ferrous sulphate 200 mg (iron)");
+                    assertThat(m.getExtractedName()).isEqualTo("Tab. Ferrous sulfate 200 mg");
+                });
+        assertThat(labRepository.findByDocumentIdAndUserIdOrderByPosition(id, user.getId()))
+                .singleElement().satisfies(l -> assertThat(l.getTestName()).isEqualTo("Hb (my label)"));
+    }
+
+    @Test
     void aProblemWithTheDocumentFailsAtOnceWithTheServicesMessage() throws Exception {
         replies.put("/v1/ocr", new Reply(422, "{\"status\":422,\"code\":\"PDF_ENCRYPTED\","
                 + "\"message\":\"This PDF is password-protected. Remove the password and upload it again\"}"));
