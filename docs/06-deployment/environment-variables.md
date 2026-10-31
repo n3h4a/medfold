@@ -23,6 +23,7 @@ Real environment variables always win.
 | `LLM_API_KEY` | empty | AI service | Anthropic key; empty uses `ANTHROPIC_API_KEY` from the environment |
 | `FRONTEND_PORT`, `BACKEND_PORT`, `AI_SERVICE_PORT` | `3000`, `8080`, `8000` | Compose | Host ports |
 | `MEDFOLD_DOMAIN` | empty | Caddy (production) | Public host name for the HTTPS certificate |
+| `VITE_DEMO_EMAIL`, `VITE_DEMO_PASSWORD` | empty | Frontend build | Public demos only: shows a "Fill in the demo account" button on the login page ([public demo](deployment-guide.md#a-public-demo)) |
 
 Finer settings (worker batch size, retry delays, login-throttling limits, upload limits) are in
 [`backend/src/main/resources/application.yml`](../../backend/src/main/resources/application.yml)

@@ -1,0 +1,16 @@
+{
+  // Opens Medfold in GitHub Codespaces: the whole Docker stack, seeded with synthetic demo data.
+  // "Code" -> "Codespaces" -> "Create codespace on main"; the app opens on port 3000 when ready.
+  "name": "Medfold",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" }
+  },
+  "hostRequirements": { "cpus": 4, "memory": "8gb" },
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "Medfold", "onAutoForward": "openBrowser" }
+  },
+  "postStartCommand": "bash .devcontainer/start-demo.sh"
+}

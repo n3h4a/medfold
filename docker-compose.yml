@@ -61,7 +61,12 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Optional, for a public demo: a "Fill in the demo account" button on the login page.
+        VITE_DEMO_EMAIL: ${VITE_DEMO_EMAIL:-}
+        VITE_DEMO_PASSWORD: ${VITE_DEMO_PASSWORD:-}
     container_name: medfold-frontend
     restart: unless-stopped
     depends_on:

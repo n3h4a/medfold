@@ -92,3 +92,19 @@ docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml up -d --b
 ```
 
 Database migrations run automatically when the backend starts. Take a backup first.
+
+## A public demo
+
+To let anyone try Medfold without installing anything:
+
+- **GitHub Codespaces (no server needed).** The repository has a dev container: on GitHub, choose
+  **Code → Codespaces → Create codespace on main**. It builds the stack with the offline AI reader,
+  seeds the synthetic demo account and opens the app on port 3000 with a "Fill in the demo account"
+  button. Each visitor's codespace is their own, so nobody sees anyone else's uploads. Setup:
+  [`.devcontainer/`](../../.devcontainer).
+- **A small server.** Follow sections 1–3 with two extra settings in `.env`:
+  `VITE_DEMO_EMAIL=demo@medfold.local` and `VITE_DEMO_PASSWORD=medfold-demo-2026` (shown on the login
+  page), then run `API_URL=https://your-domain/api/v1 scripts/seed-demo-data.sh`. Everyone shares the
+  demo account, so reset it regularly (`scripts/reset-db.sh` on a schedule) and keep
+  `LLM_PROVIDER=mock` so visitors can't spend your API credits.
+
