@@ -20,6 +20,7 @@ dev = [
     "pytest>=9.2,<10.0",
     "httpx2>=2.16,<3.0",
     "reportlab>=5.1,<6.0",
+    "pytest-cov>=7.0,<8.0",
 ]
 
 [build-system]
@@ -31,3 +32,6 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["app"]

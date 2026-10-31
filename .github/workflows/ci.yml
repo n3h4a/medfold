@@ -27,8 +27,13 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      # Testcontainers starts PostgreSQL in the runner's Docker.
+      # Testcontainers starts PostgreSQL in the runner's Docker. JaCoCo writes the coverage report.
       - run: ./mvnw -B test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend/target/site/jacoco/
 
   ai-service:
     name: AI service (FastAPI)
@@ -46,7 +51,12 @@ jobs:
       # Real OCR tests need Tesseract; without it they are skipped.
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-osd
       - run: pip install -e ".[dev]"
-      - run: pytest
+      - run: pytest --cov --cov-report=term --cov-report=html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-service-coverage
+          path: ai-service/htmlcov/
 
   frontend:
     name: Frontend (React)
@@ -63,7 +73,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm test
+      - run: npm run test:coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
       # Type-checks (tsc -b) and builds the production bundle.
       - run: npm run build
 
