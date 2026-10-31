@@ -1,0 +1,16 @@
+flowchart LR
+    user(["Person managing<br/>their records"])
+    subgraph medfold["Medfold"]
+        spa["React SPA"]
+        api["Spring Boot API"]
+        ai["FastAPI AI service"]
+        db[("PostgreSQL")]
+        files[("File storage")]
+    end
+    llm(["Anthropic API<br/>(optional)"])
+    user -- HTTPS --> spa
+    spa -- "/api/v1 (JSON, Bearer JWT)" --> api
+    api --> db
+    api --> files
+    api -- "internal key" --> ai
+    ai -- "LLM_PROVIDER=anthropic" --> llm

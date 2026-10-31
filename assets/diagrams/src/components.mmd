@@ -1,0 +1,42 @@
+flowchart LR
+    subgraph Browser
+        UI["React SPA<br/>Documents timeline + search · Upload queue<br/>Detail + results + editing · Test trends · Medicines"]
+    end
+
+    subgraph Backend["Spring Boot API :8080 (only public backend)"]
+        SEC["Security filter chain<br/>JWT on every request"]
+        AUTH["auth/"]
+        DOCS["document/<br/>upload · list · get · status · file · delete<br/>reprocess · edit details"]
+        RECORDS["records/<br/>results · labs · trends · medicines<br/>edit/remove rows · LabFlagCalculator"]
+        SEARCH["search/<br/>every word, owner-scoped SQL"]
+        ACCOUNT["account/<br/>export · delete"]
+        STORE["storage/<br/>StorageService"]
+        WORKER["processing/<br/>job queue + worker"]
+        AICLIENT["ai/<br/>AiServiceClient"]
+    end
+
+    subgraph AI["FastAPI AI service :8000 (internal only)"]
+        OCR["/v1/ocr<br/>text layer → Tesseract"]
+        EXTRACT["/v1/extract<br/>LLM provider (mock · Claude)<br/>validation + safety check"]
+        SCHEMA["ExtractionResult schema<br/>+ prompt extraction-v1"]
+    end
+
+    DB[("PostgreSQL 16<br/>users · documents · pages · lab_results<br/>medications · terms · jobs · extraction_runs")]
+    FILES[("data/uploads/{userId}/{uuid}.ext")]
+    LLM(["LLM API"])
+
+    UI -- "Bearer token<br/>XHR upload with progress<br/>blob download for viewer" --> SEC
+    SEC --> AUTH --> DB
+    SEC --> DOCS --> DB
+    SEC --> RECORDS --> DB
+    SEC --> SEARCH --> DB
+    SEC --> ACCOUNT --> DB
+    DOCS --> STORE --> FILES
+    DOCS -- "enqueue (same transaction)" --> DB
+    WORKER -- "claim: FOR UPDATE SKIP LOCKED" --> DB
+    WORKER --> STORE
+    WORKER --> AICLIENT
+    AICLIENT -- "X-Internal-Api-Key" --> OCR
+    AICLIENT --> EXTRACT
+    EXTRACT --> SCHEMA
+    EXTRACT --> LLM

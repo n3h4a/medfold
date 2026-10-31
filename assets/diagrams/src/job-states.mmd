@@ -1,0 +1,10 @@
+stateDiagram-v2
+    direction LR
+    [*] --> PENDING : enqueued with the upload
+    PENDING --> RUNNING : claimed (FOR UPDATE SKIP LOCKED)
+    RUNNING --> DONE : processed
+    RUNNING --> PENDING : retryable failure, after 30 s, 60 s, 120 s…
+    RUNNING --> PENDING : worker crashed (stale after 10 min)
+    RUNNING --> FAILED : permanent failure or 3 attempts used
+    DONE --> [*]
+    FAILED --> [*]

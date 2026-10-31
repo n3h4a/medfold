@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    participant B as Browser
+    participant API as Spring Boot
+    participant FS as Storage (data/uploads)
+    participant DB as PostgreSQL
+
+    B->>API: POST /documents (multipart, one file, XHR progress)
+    API->>API: detect type from magic bytes (PDF/JPEG/PNG), 10 MB limit
+    API->>FS: stream to temp file → atomic move, SHA-256 computed on the way
+    API->>DB: duplicate? (user_id, sha256)
+    alt duplicate
+        API->>FS: delete stored file
+        API-->>B: 409 DUPLICATE_DOCUMENT + existingDocumentId
+    else new
+        API->>DB: INSERT documents (status UPLOADED)
+        API-->>B: 201 Location: /documents/{id}
+    end
+
+    B->>API: GET /documents/{id}/file (Bearer)
+    API->>DB: findByIdAndUserId (404 if not owner)
+    API-->>B: bytes, inline, Cache-Control no-store
+    Note over B: shown via blob: URL, revoked on leave

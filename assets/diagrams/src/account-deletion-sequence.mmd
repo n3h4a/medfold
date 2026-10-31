@@ -1,0 +1,12 @@
+sequenceDiagram
+    autonumber
+    participant B as Browser
+    participant API as Backend
+    participant DB as PostgreSQL
+    participant FS as File storage
+    B->>API: DELETE /account {password}
+    API->>DB: throttle check (per account and address)
+    API->>DB: verify password (BCrypt)
+    API->>DB: DELETE user → cascades to sessions, documents, pages,<br/>results, medicines, terms, jobs, audit rows (one transaction)
+    API->>FS: after commit: delete the user's folder
+    API-->>B: 204 + cleared refresh cookie

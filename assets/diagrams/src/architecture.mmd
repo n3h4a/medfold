@@ -1,0 +1,7 @@
+flowchart LR
+    browser(["Browser<br/>React SPA"]) -- "HTTPS · /api/v1 · JWT" --> nginx["nginx<br/>static files + /api proxy"]
+    nginx --> api["Spring Boot API<br/>auth · documents · records · search"]
+    api --> db[("PostgreSQL<br/>data · job queue · rate limits")]
+    api --> files[("File storage")]
+    api -- "worker · internal key" --> ai["FastAPI AI service<br/>PDF text · Tesseract OCR · extraction"]
+    ai -.-> llm(["Claude API<br/>(optional)"])

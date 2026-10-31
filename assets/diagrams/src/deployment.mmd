@@ -1,0 +1,11 @@
+flowchart LR
+    internet(["Internet"]) -- "443 / 80→443" --> caddy["Caddy<br/>TLS · HSTS"]
+    subgraph host["Docker host (docker/docker-compose.prod.yml)"]
+        caddy --> nginx["frontend: nginx<br/>SPA · CSP · /api proxy"]
+        nginx --> backend["backend<br/>Spring Boot"]
+        backend --> ai["ai-service<br/>FastAPI + Tesseract"]
+        backend --> db[("db<br/>PostgreSQL 16")]
+        backend --> uploads[("medfold_uploads volume")]
+        db --> pgdata[("medfold_pgdata volume")]
+    end
+    ai --> llm(["Anthropic API"])

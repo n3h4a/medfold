@@ -1,0 +1,25 @@
+{
+  "theme": "base",
+  "themeVariables": {
+    "fontFamily": "Inter, Segoe UI, Helvetica, Arial, sans-serif",
+    "fontSize": "15px",
+    "primaryColor": "#e6f4f2",
+    "primaryBorderColor": "#1f726b",
+    "primaryTextColor": "#0f172a",
+    "secondaryColor": "#f1f5f9",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#64748b",
+    "noteBkgColor": "#fef9c3",
+    "noteBorderColor": "#ca8a04",
+    "actorBkg": "#e6f4f2",
+    "actorBorder": "#1f726b",
+    "signalColor": "#334155",
+    "taskBkgColor": "#14b8a6",
+    "taskBorderColor": "#0f766e",
+    "doneTaskBkgColor": "#5eead4",
+    "doneTaskBorderColor": "#0f766e",
+    "sectionBkgColor": "#f1f5f9",
+    "altSectionBkgColor": "#ffffff"
+  },
+  "gantt": { "barHeight": 26, "fontSize": 14, "sectionFontSize": 14, "leftPadding": 230 }
+}

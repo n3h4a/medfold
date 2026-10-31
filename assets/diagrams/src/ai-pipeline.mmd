@@ -1,0 +1,22 @@
+flowchart TB
+    file["File bytes"] --> type{"Type from magic bytes"}
+    type -- "not PDF/JPEG/PNG" --> e415["415 UNSUPPORTED_FILE_TYPE"]
+    type -- PDF --> layer["Text layer per page (pypdf, layout mode)"]
+    layer --> enough{"≥ 25 letters or digits?"}
+    enough -- yes --> pdftext["PDF_TEXT: exact"]
+    enough -- no --> render["Render page ~300 DPI (pypdfium2)"]
+    type -- image --> exif["Apply EXIF rotation"]
+    render & exif --> prep["Grayscale · resize 1800–4000 px · autocontrast"]
+    prep --> tess["Tesseract: orientation fix, words + confidence"]
+    tess --> ocrtext["TESSERACT or NONE"]
+    pdftext & ocrtext --> pages["Per-page text, source, confidence"]
+    pages --> prompt["Prompt extraction-v1 + JSON schema<br/>(page text wrapped as data, never instructions)"]
+    prompt --> llm["LLM provider: Claude or offline reader"]
+    llm --> valid{"Valid ExtractionResult?"}
+    valid -- "no, first try" --> retry["Corrective retry with the problems listed"] --> llm
+    valid -- "no, again" --> e502["502 EXTRACTION_INVALID"]
+    valid -- yes --> safe{"Advice or judgment wording?"}
+    safe -- "yes, first try" --> retry
+    safe -- "yes, again" --> sanitize["Rebuild summary from facts, drop unsafe definitions"]
+    safe -- no --> result["ExtractResponse: data + model, prompt version, safety flags"]
+    sanitize --> result

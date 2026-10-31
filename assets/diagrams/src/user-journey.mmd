@@ -1,0 +1,10 @@
+flowchart LR
+    reg["Register"] --> up["Upload reports<br/>drag & drop"]
+    up --> wait["Watch them<br/>being read"]
+    wait --> review["Review a document:<br/>original next to results"]
+    review --> fix{"Anything<br/>misread?"}
+    fix -- yes --> edit["Edit or remove<br/>the row"] --> trend
+    fix -- no --> trend["Open a test's<br/>trend over time"]
+    trend --> find["Search for a medicine,<br/>doctor or word"]
+    find --> visit["Before an appointment:<br/>check history, medicines"]
+    visit --> own["Download all data<br/>or delete the account"]

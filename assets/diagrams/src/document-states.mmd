@@ -1,0 +1,11 @@
+stateDiagram-v2
+    direction LR
+    [*] --> UPLOADED : upload stored, job queued
+    UPLOADED --> PROCESSING : worker claims the job
+    PROCESSING --> READY : results saved
+    PROCESSING --> FAILED : document problem, or retries used up
+    PROCESSING --> PROCESSING : temporary failure, retried later
+    READY --> PROCESSING : user asks to process again
+    FAILED --> PROCESSING : user tries again
+    READY --> [*] : deleted
+    FAILED --> [*] : deleted

@@ -1,0 +1,64 @@
+classDiagram
+    direction TB
+    class User {
+        UUID id
+        String email
+        String passwordHash
+    }
+    class Document {
+        DocumentStatus status
+        DocumentType docType
+        LocalDate docDate
+        String sha256
+        boolean userEdited
+        markProcessing()
+        markReady()
+        markFailed(reason)
+    }
+    class ProcessingJob {
+        JobStatus status
+        int attempts
+        Instant nextRunAt
+        start(now)
+        complete()
+        fail(error, retryable, now, delay) bool
+    }
+    class LabResult {
+        String testName
+        String testKey
+        String valueText
+        BigDecimal valueNumeric
+        LabFlag flag
+        edit(name, value, unit, range)
+        applyComparison(value, low, high, flag)
+    }
+    class Medication {
+        String name
+        String extractedName
+        String dosage
+        String frequency
+        edit(...)
+    }
+    class DocumentPage {
+        int pageNumber
+        String text
+        TextSource source
+        Float confidence
+    }
+    class DocumentTerm {
+        String term
+        String definition
+    }
+    class ExtractionRun {
+        String llmModel
+        String promptVersion
+        boolean safetyFiltered
+        String rawOutput
+    }
+    User "1" --> "*" Document : owns
+    Document "1" --> "*" DocumentPage
+    Document "1" --> "*" LabResult
+    Document "1" --> "*" Medication
+    Document "1" --> "*" DocumentTerm
+    Document "1" --> "*" ProcessingJob
+    Document "1" --> "*" ExtractionRun

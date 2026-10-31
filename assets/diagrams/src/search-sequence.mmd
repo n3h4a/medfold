@@ -1,0 +1,12 @@
+sequenceDiagram
+    autonumber
+    participant B as Browser
+    participant S as SearchService
+    participant DB as PostgreSQL
+    B->>S: GET /search?q=metformin iyer (after typing pauses)
+    S->>S: split into words (≤ 6), escape LIKE wildcards
+    S->>DB: documents of this user where EVERY word matches title, summary,<br/>doctor, facility, file name, page text, test or medicine name
+    DB-->>S: ids in timeline order (≤ 50)
+    S->>DB: load those documents (owner-scoped)
+    S->>DB: first page containing the first word, per document
+    S-->>B: documents + snippet + page number

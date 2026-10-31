@@ -1,0 +1,20 @@
+sequenceDiagram
+    autonumber
+    participant B as Browser
+    participant API as Backend
+    participant DB as PostgreSQL
+    B->>API: POST /auth/login {email, password}
+    API->>DB: throttle check · BCrypt verify
+    API->>DB: store SHA-256(refresh token)
+    API-->>B: access token (JSON, kept in memory) + refresh cookie (HttpOnly)
+    B->>API: GET /documents · Bearer access token
+    API-->>B: 200
+    Note over B,API: 15 minutes later
+    B->>API: GET /documents · expired token
+    API-->>B: 401 INVALID_TOKEN
+    B->>API: POST /auth/refresh · cookie sent automatically
+    API->>DB: lock token row · revoke it · store a new one
+    API-->>B: new access token + new refresh cookie
+    B->>API: retry GET /documents
+    API-->>B: 200
+    Note over B,DB: If an already-rotated token is presented again,<br/>every session of that user is revoked (theft detection).

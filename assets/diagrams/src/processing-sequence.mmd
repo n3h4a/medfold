@@ -1,0 +1,17 @@
+sequenceDiagram
+    autonumber
+    participant W as Worker (every 2s)
+    participant DB as PostgreSQL
+    participant FS as Storage
+    participant AI as AI service
+
+    W->>DB: claim due jobs (UPDATE … FOR UPDATE SKIP LOCKED), recover stale RUNNING jobs
+    W->>DB: tx 1: document → PROCESSING
+    W->>FS: load stored file
+    W->>AI: POST /v1/ocr (multipart)
+    AI-->>W: per-page text, source, confidence
+    W->>AI: POST /v1/extract (pages with text)
+    AI-->>W: validated, safety-checked ExtractionResult + meta
+    W->>DB: tx 2: replace pages, labs (+ flags), medicines, terms · metadata unless user-edited · extraction_runs row
+    W->>DB: tx 3: job DONE, document READY
+    Note over W,DB: on failure: retry after 30s, 60s, … (≤1h, 3 attempts) or FAILED with a plain message
