@@ -7,7 +7,8 @@ Living document, updated at every 10-task checkpoint.
 | 1 | 1–10 | Setup and authentication |
 | 2 | 11–20 | Documents end to end, OCR, extraction contract |
 | 3 | 21–30 | LLM extraction, processing pipeline, timeline |
-| **4 (current)** | **31–40** | **Search, editing, account control, operations and security** |
+| 4 | 31–40 | Search, editing, account control, operations and security |
+| **5 (current)** | **41–45** | **CI, shared login limits, correctness fixes, production deployment** |
 
 ---
 
@@ -171,11 +172,11 @@ A document matches when **every word** appears somewhere in it: title, summary, 
 - **PATCH semantics:** an omitted field is unchanged and an empty string clears it. That lets `{}` pass validation, so the isolation suite's attacker always reaches the ownership check and gets 404.
 - **Corrections are marked `user_edited`** only when a value actually changed.
 - **A new record date re-dates the document's lab results and medicines,** so trends follow the correction.
-- **Reprocessing keeps corrections.** Edited document details are not overwritten. Edited lab rows and medicines are kept, and the new reading of the same test (by test key) or medicine (by name) is skipped instead of duplicated. All other rows are replaced as before.
+- **Reprocessing keeps corrections.** Edited document details are not overwritten. Edited lab rows and medicines are kept, and the new reading of the same test or medicine is skipped instead of duplicated. Lab results match on their test key and medicines on `extracted_name` (the name as first read); corrections change neither, so renaming a row doesn't break the match. All other rows are replaced as before.
 
 ### Trend units
 
-The trend chart plots values in the unit of the latest result. Unit spellings count as one unit (`g/dL` = `gm/dl`, `µmol/L` = `umol/l`, `/cumm` = `/µL`). A short, explicit list of standard conversions is applied per test key: glucose, cholesterol (total/LDL/HDL), triglycerides, creatinine, uric acid, urea, haemoglobin (g/dL ↔ g/L), vitamin D, and HbA1c (% ↔ mmol/mol, IFCC–NGSP master equation). Converted points say "printed as …". Anything else is never converted and stays table-only, and tables always show values exactly as printed.
+The trend chart plots values in the unit of the latest result. Unit spellings, and units equal by definition, count as one unit (`g/dL` = `gm/dl`, `µmol/L` = `umol/l`, `/cumm` = `/µL`, µIU/mL = mIU/L, IU/L = U/L, pg/mL = ng/L, ng/mL = µg/L, "mcg" = "µg"); for sodium and potassium only, mEq/L = mmol/L. A short, explicit list of standard conversions is applied per test key: glucose, cholesterol (total/LDL/HDL), triglycerides, creatinine, uric acid, urea, haemoglobin (g/dL ↔ g/L), vitamin D, and HbA1c (% ↔ mmol/mol, IFCC–NGSP master equation). Converted points say "printed as …". Anything else is never converted and stays table-only, and tables always show values exactly as printed.
 
 ### Account control
 
@@ -184,13 +185,21 @@ The trend chart plots values in the unit of the latest result. Unit spellings co
 
 ### Password guessing (`LoginThrottle`)
 
-Wrong passwords are counted in a 15-minute sliding window: **5 per account, 30 per client address**. Past either limit, attempts get `429 TOO_MANY_ATTEMPTS` with `Retry-After` before any password is checked. Unknown emails count exactly like real ones, so the limit reveals nothing about which accounts exist. A successful login clears the account's count, not the address's. The password confirmation for account deletion is limited the same way. Behind nginx the client address comes from `X-Forwarded-For`, trusted only from internal proxy addresses (`server.forward-headers-strategy: native`).
+Wrong passwords are counted in a 15-minute sliding window: **5 per account, 30 per client address**. Past either limit, attempts get `429 TOO_MANY_ATTEMPTS` with `Retry-After` before any password is checked. Unknown emails count exactly like real ones, so the limit reveals nothing about which accounts exist. A successful login clears the account's count, not the address's. The password confirmation for account deletion is limited the same way. Counts live in the `login_failures` table (keys stored as SHA-256 hashes, expired rows deleted every 5 minutes), so they hold across restarts and every backend instance. Behind nginx the client address comes from `X-Forwarded-For`, trusted only from internal proxy addresses (`server.forward-headers-strategy: native`).
 
 ### Operations
 
 - **Health:** `GET /health` also reports `aiService` (`UP`, `DOWN`, `NOT_CONFIGURED`, from `/v1/ping` with 2s timeouts, remembered for 10s) and `processing` (`ON`/`OFF`). Neither changes the overall status: without the AI service the API works and documents wait in the queue.
 - **Refresh-token cleanup:** a daily job deletes tokens one day after they expire. Revoked tokens are kept until then, because presenting one again is how reuse is detected.
 - **Images:** the backend is built with the Maven wrapper and runs on a JRE as a non-root user; the frontend is built with Vite and served by nginx (SPA fallback, immutable hashed assets, 11 MB upload limit).
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request: backend tests (Testcontainers on the runner's Docker), AI service tests with Tesseract installed (so the real OCR tests run), frontend lint, tests and production build, then a build of all Docker images, validation of the production overlay and a syntax check of the backup scripts.
+
+### Production
+
+See [deployment.md](deployment.md). `docker-compose.prod.yml` puts **Caddy** in front (automatic Let's Encrypt certificate, HTTP→HTTPS redirect, HSTS), unpublishes every other port, requires real secrets and makes the refresh cookie `Secure`. nginx sends a strict Content-Security-Policy (same origin only; `blob:` for the file viewer). `scripts/backup.sh` and `scripts/restore.sh` back up and restore the database (`pg_dump` custom format) and the uploaded files.
 
 ---
 
@@ -282,6 +291,9 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 | V4 `extraction_results` | `document_pages`, `lab_results` (printed value + parsed numbers + flag; trend index `(user_id, test_key, observed_on)`), `medications`, `document_terms`, `processing_jobs` (at most one PENDING/RUNNING job per document), `extraction_runs` (audit: OCR engine, model, prompt version, safety flags, raw output). All carry `user_id` and cascade on document delete |
 | V5 `processing_jobs_user` | `processing_jobs.user_id`, so the worker loads documents through owner-scoped queries |
 
+| V6 `login_failures` | wrong-password attempts for throttling, keyed by SHA-256 of the throttle key |
+| V7 `medications_extracted_name` | `medications.extracted_name`: the name as first read, so reprocessing recognises renamed corrections |
+
 No migrations were needed for checkpoint 4: search reads existing columns, and `user_edited` already existed on documents, lab results and medicines.
 
 ---
@@ -346,9 +358,9 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 
 | Module | Command | Tests | Highlights |
 |---|---|---|---|
-| backend | `./mvnw test` (Docker needed) | 220 | route-driven user isolation (now also attacking another user's lab result and medicine), SKIP LOCKED race, upload → worker → stub AI service on a real port → database, AI error mapping and timeouts, 38 flag cases, search escaping and isolation, corrections surviving reprocessing, account deletion emptying every table and folder, login throttling |
+| backend | `./mvnw test` (Docker needed) | 222 | route-driven user isolation (now also attacking another user's lab result and medicine), SKIP LOCKED race, upload → worker → stub AI service on a real port → database, AI error mapping and timeouts, 38 flag cases, search escaping and isolation, corrections surviving reprocessing, account deletion emptying every table and folder, login throttling against the real table (two instances sharing one count), renamed corrections surviving reprocessing |
 | ai-service | `pytest` | 139 (7 need Tesseract) | PDFs generated in memory, real Tesseract on rendered text, schema safety scan, scripted LLM and fake SDK, 32 safety phrasings, prompt injection |
-| frontend | `npm test` | 86 | upload queue concurrency, XHR token refresh, viewer states, polling until ready, results and trends, unit conversions, search, editing forms, reprocess, export and account deletion |
+| frontend | `npm test` | 94 | upload queue concurrency, XHR token refresh, viewer states, polling until ready, results and trends, unit conversions, search, editing forms, reprocess, export and account deletion |
 
 ---
 
@@ -386,19 +398,23 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 | 38 | Download all data as JSON | `b13a570` |
 | 39 | AI service availability on the status page | `8878c8d` |
 | 40 | Login and account-deletion throttling | `35ea90c` |
+| 41 | CI on GitHub Actions for all three services and the images | `ca7975b` |
+| 42 | Login-throttling counts in the database | `49cea5d` |
+| 43 | Renamed medicines on reprocessing; units equal by definition | `0207123` |
+| 44 | Production deployment: HTTPS, security headers, backups and restore | `b95473b` |
 
 ---
 
 ## 10. Known limitations (accepted for now)
 
 - **OCR makes small character mistakes** on photos (e.g. "a" read as "4"). Mitigated by showing the original next to extracted data, flags only where the value parses with certainty, and letting users correct any value.
-- **Unit conversion covers a fixed list of tests** (see *Trend units*); other unit changes leave values table-only. Units that are numerically identical under different names (e.g. µIU/mL and mIU/L for TSH) are not yet recognised.
+- **Unit conversion covers a fixed list of tests** (see *Trend units*); other unit changes leave values table-only.
 - **Search is substring matching** without ranking or typo tolerance; fine for one person's records.
-- **Corrected rows are matched to new readings by test key or medicine name only.** A corrected row whose name was changed to something new can sit next to a fresh reading of the original line after reprocessing.
-- **Login throttling counts are in memory,** per backend instance; a restart forgives. Enough for one instance; several instances would need a shared store (e.g. the database).
 - **The data export doesn't embed original files;** they're downloaded per document.
 - **One worker instance processes 3 jobs per 2s cycle, one after another.** Enough for personal use; more instances can run safely (SKIP LOCKED).
 - **English OCR only** (`OCR_LANGUAGES=eng`). Other Tesseract languages can be added via config and packages.
 - **The AI service Docker image wasn't built in the cloud sandbox** (Debian mirror blocked there). It builds on a normal machine.
 - **No CORS config,** by design: the Vite dev proxy and nginx in Docker Compose both serve the SPA and `/api` from one origin.
-- **The frontend and backend images weren't built end to end in the cloud sandbox** (package registries are unreachable from Docker builds there). Their runtime stages were verified with locally built artifacts: backend migrates and serves, nginx serves the SPA and proxies `/api`.
+- **The frontend and backend images weren't built end to end in the cloud sandbox** (package registries are unreachable from Docker builds there); CI builds them on every push. Their runtime stages were verified with locally built artifacts, including the full production overlay with Caddy on `localhost`.
+- **Single server.** The deployment guide targets one Docker host. Backups are written locally by `scripts/backup.sh`; copying them to encrypted offsite storage and pruning old ones is left to the operator.
+- **A real Claude extraction hasn't been run from this repository's sandbox;** the pipeline is tested end to end against a stub AI service, and the Anthropic provider against a fake SDK client.
