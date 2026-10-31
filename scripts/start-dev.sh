@@ -4,15 +4,20 @@
 #   scripts/start-dev.sh
 # Logs: .dev/<service>.log. Needs Docker, JDK 21, Node 20+, Python 3.12+.
 set -euo pipefail
+# Job control gives each service its own process group, so stopping a service also stops the
+# processes it started (Maven runs the backend in a child JVM).
+set -m
 cd "$(dirname "$0")/.."
 
 [ -f .env ] || { cp .env.example .env; echo "Created .env from .env.example (local defaults)."; }
 mkdir -p .dev
+echo $$ > .dev/start-dev.pid   # lets scripts/stop-dev.sh stop this from another terminal
 pids=()
 stop() {
   echo; echo "Stopping..."
-  for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+  for pid in "${pids[@]}"; do kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true; done
   wait 2>/dev/null || true
+  [ "$(cat .dev/start-dev.pid 2>/dev/null)" = "$$" ] && find .dev -maxdepth 1 -name start-dev.pid -delete
 }
 trap stop EXIT INT TERM
 
@@ -34,7 +39,7 @@ pids+=($!)
 
 [ -d frontend/node_modules ] || (cd frontend && npm install --no-audit --no-fund)
 echo "Starting the frontend on :5173"
-(cd frontend && exec npm run dev -- --strictPort) > .dev/frontend.log 2>&1 &
+(cd frontend && exec node_modules/.bin/vite --strictPort) > .dev/frontend.log 2>&1 &
 pids+=($!)
 
 echo "Waiting for the backend..."
@@ -47,5 +52,5 @@ curl -sf http://localhost:8080/api/v1/health >/dev/null || { echo "Backend didn'
 echo
 echo "Medfold is running: http://localhost:5173"
 echo "Load demo data:     scripts/seed-demo-data.sh"
-echo "Logs:               .dev/*.log    Stop: Ctrl+C"
+echo "Logs:               .dev/*.log    Stop: Ctrl+C or scripts/stop-dev.sh"
 wait
