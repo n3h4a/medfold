@@ -27,5 +27,5 @@ public record ProcessingProperties(
         @Min(1) @Max(50) @DefaultValue("3") int batchSize,
         @Min(1) @Max(10) @DefaultValue("3") int maxAttempts,
         @NotNull @DefaultValue("PT30S") Duration retryDelay,
-        @NotNull @DefaultValue("PT10M") Duration staleAfter) {
+        @NotNull @DefaultValue("PT15M") Duration staleAfter) {
 }

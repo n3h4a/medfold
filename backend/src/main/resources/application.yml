@@ -58,7 +58,9 @@ medfold:
     batch-size: 3
     max-attempts: 3
     retry-delay: PT30S
-    stale-after: PT10M
+    # Longer than the slowest live job (OCR call + extract call, each up to medfold.ai.read-timeout),
+    # so a job is only recovered when its worker is really gone.
+    stale-after: PT15M
 
   ai:
     # Internal AI service (OCR and extraction). Only the backend calls it.

@@ -277,6 +277,31 @@ class JobProcessingTest {
     }
 
     @Test
+    void aLateWorkerLeavesAJobAloneOnceAnotherInstanceHasTakenItOver() {
+        UUID documentId = newQueuedDocument();
+        // While this worker is still busy, another instance decides the job is stale, recovers it and claims it again.
+        processor.behaviour = d -> {
+            jdbcTemplate.update("UPDATE processing_jobs SET locked_at = now() - interval '20 minutes' WHERE document_id = ?", documentId);
+            runner.recoverStaleJobs();
+            makeDue(documentId);
+            assertThat(queue.claimDue(1)).hasSize(1);
+        };
+
+        assertThat(runner.runDue()).isEqualTo(1);
+
+        ProcessingJob job = jobOf(documentId);
+        assertThat(job.getStatus()).as("still held by the newer attempt").isEqualTo(JobStatus.RUNNING);
+        assertThat(job.getAttempts()).isEqualTo(2);
+        assertThat(documentOf(documentId).getStatus()).isEqualTo(DocumentStatus.PROCESSING);
+
+        // The newer attempt finishes normally.
+        processor.behaviour = d -> { };
+        runner.run(job.getId());
+        assertThat(jobOf(documentId).getStatus()).isEqualTo(JobStatus.DONE);
+        assertThat(documentOf(documentId).getStatus()).isEqualTo(DocumentStatus.READY);
+    }
+
+    @Test
     void aDocumentDeletedDuringProcessingIsHandledQuietly() {
         UUID documentId = newQueuedDocument();
         processor.behaviour = d -> jdbcTemplate.update("DELETE FROM documents WHERE id = ?", d.getId());
