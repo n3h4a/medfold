@@ -1,20 +1,54 @@
-# Medfold architecture
+# Architecture
 
-Living document, updated at every 10-task checkpoint.
+Medfold turns uploaded medical documents (PDFs, scans, phone photos) into a searchable personal
+health record. Three services cooperate:
 
-| Checkpoint | Tasks | Theme |
-|---|---|---|
-| 1 | 1–10 | Setup and authentication |
-| 2 | 11–20 | Documents end to end, OCR, extraction contract |
-| 3 | 21–30 | LLM extraction, processing pipeline, timeline |
-| 4 | 31–40 | Search, editing, account control, operations and security |
-| **5 (current)** | **41–45** | **CI, shared login limits, correctness fixes, production deployment** |
+- **React SPA**: upload, timeline, document viewer with extracted results, trends, search, editing.
+- **Spring Boot API**: the only public backend. Accounts, documents, storage, a background job
+  queue, and everything that touches the database.
+- **FastAPI AI service**: internal only. Reads text (PDF text layer or Tesseract OCR) and turns it
+  into validated, structured data with a language model (Claude) or an offline rule-based reader.
 
----
+PostgreSQL holds all data; uploaded files live on a volume behind a storage interface.
 
-## 1. System overview
+## Principles
 
-Everything in this diagram exists and is tested.
+These shaped most decisions (see [decisions](../decisions/README.md)):
+
+1. **Privacy by construction.** Every query names the owner; there is no unscoped lookup to misuse.
+   Another user's document and a missing one return the same 404.
+2. **The AI describes, it never interprets.** The output schema has no field for diagnosis, risk or
+   advice. Values are copied as printed; high/low flags are computed by the backend from the
+   report's own printed range.
+3. **Slow work stays off the request path.** Uploads return immediately; OCR and extraction run in
+   a database-backed job queue with retries, and no transaction is held open during AI calls.
+4. **Fail plainly.** Users see actionable, plain-language messages; internal details go to logs.
+5. **Boring infrastructure.** One PostgreSQL does storage, queueing, search and rate limiting.
+
+## 1. System context
+
+```mermaid
+flowchart LR
+    user(["Person managing<br/>their records"])
+    subgraph medfold["Medfold"]
+        spa["React SPA"]
+        api["Spring Boot API"]
+        ai["FastAPI AI service"]
+        db[("PostgreSQL")]
+        files[("File storage")]
+    end
+    llm(["Anthropic API<br/>(optional)"])
+    user -- HTTPS --> spa
+    spa -- "/api/v1 (JSON, Bearer JWT)" --> api
+    api --> db
+    api --> files
+    api -- "internal key" --> ai
+    ai -- "LLM_PROVIDER=anthropic" --> llm
+```
+
+## 2. Components
+
+Every arrow below exists and is tested.
 
 ```mermaid
 flowchart LR
@@ -61,22 +95,19 @@ flowchart LR
     EXTRACT --> LLM
 ```
 
-### What runs where
+| Backend package | Responsibility |
+|---|---|
+| `auth` | Register, login, rotating refresh tokens, JWT validation, login throttling |
+| `document` | Upload (type detection, duplicates), timeline, file streaming, corrections, reprocessing |
+| `storage` | `StorageService` interface; local filesystem implementation (`{userId}/{uuid}.ext`) |
+| `processing` | Job queue (`FOR UPDATE SKIP LOCKED`), worker, retries, result writer |
+| `ai` | HTTP client for the AI service, error mapping, availability check |
+| `records` | Lab results, medicines, trends, flag calculation, corrections |
+| `search` | Owner-scoped substring search across details, page text, tests and medicines |
+| `account` | Data export, account deletion |
+| `common`, `config`, `health` | Error format, security and scheduling config, health endpoint |
 
-**Everything in Docker:** `docker compose up -d --build`, then http://localhost:3000. nginx serves the SPA and forwards `/api` to the backend (one origin, so no CORS and the `SameSite=Strict` refresh cookie works). Uploads live in the `medfold_uploads` volume, database data in `medfold_pgdata`.
-
-**Local development:**
-
-| Component | How to start | Port |
-|---|---|---|
-| PostgreSQL 16 | `docker compose up -d db` | 5432 |
-| Spring Boot API | `cd backend && ./mvnw spring-boot:run` | 8080 |
-| FastAPI AI service | `cd ai-service && uvicorn app.main:app --port 8000` (or `docker compose up -d --build ai-service`) | 8000 |
-| React SPA | `cd frontend && npm run dev` | 5173 |
-
----
-
-## 2. Document flow today
+## 3. Upload
 
 ```mermaid
 sequenceDiagram
@@ -114,9 +145,7 @@ sequenceDiagram
   - every OWNED_BY_ID endpoint is attacked by a second user, who must get 404 and change nothing;
   - verified by mutation testing: an unclassified endpoint and an owner-unaware lookup both fail the build.
 
----
-
-### Processing flow
+## 4. Processing
 
 ```mermaid
 sequenceDiagram
@@ -133,7 +162,7 @@ sequenceDiagram
     AI-->>W: per-page text, source, confidence
     W->>AI: POST /v1/extract (pages with text)
     AI-->>W: validated, safety-checked ExtractionResult + meta
-    W->>DB: tx 2: replace pages, labs (+ flags), medicines, terms; metadata unless user-edited; extraction_runs row
+    W->>DB: tx 2: replace pages, labs (+ flags), medicines, terms · metadata unless user-edited · extraction_runs row
     W->>DB: tx 3: job DONE, document READY
     Note over W,DB: on failure: retry after 30s, 60s, … (≤1h, 3 attempts) or FAILED with a plain message
 ```
@@ -152,6 +181,8 @@ No transaction is open during either AI call. The browser follows progress by po
 | OCR found no text on any page | no (no model call) | "No text was found in this document" |
 
 Internal details go to the log and `processing_jobs.last_error`, never to the user.
+
+## 5. Key mechanisms
 
 ### Lab flags (`LabFlagCalculator`)
 
@@ -187,23 +218,7 @@ The trend chart plots values in the unit of the latest result. Unit spellings, a
 
 Wrong passwords are counted in a 15-minute sliding window: **5 per account, 30 per client address**. Past either limit, attempts get `429 TOO_MANY_ATTEMPTS` with `Retry-After` before any password is checked. Unknown emails count exactly like real ones, so the limit reveals nothing about which accounts exist. A successful login clears the account's count, not the address's. The password confirmation for account deletion is limited the same way. Counts live in the `login_failures` table (keys stored as SHA-256 hashes, expired rows deleted every 5 minutes), so they hold across restarts and every backend instance. Behind nginx the client address comes from `X-Forwarded-For`, trusted only from internal proxy addresses (`server.forward-headers-strategy: native`).
 
-### Operations
-
-- **Health:** `GET /health` also reports `aiService` (`UP`, `DOWN`, `NOT_CONFIGURED`, from `/v1/ping` with 2s timeouts, remembered for 10s) and `processing` (`ON`/`OFF`). Neither changes the overall status: without the AI service the API works and documents wait in the queue.
-- **Refresh-token cleanup:** a daily job deletes tokens one day after they expire. Revoked tokens are kept until then, because presenting one again is how reuse is detected.
-- **Images:** the backend is built with the Maven wrapper and runs on a JRE as a non-root user; the frontend is built with Vite and served by nginx (SPA fallback, immutable hashed assets, 11 MB upload limit).
-
-### Continuous integration
-
-`.github/workflows/ci.yml` runs on every push to `main` and every pull request: backend tests (Testcontainers on the runner's Docker), AI service tests with Tesseract installed (so the real OCR tests run), frontend lint, tests and production build, then a build of all Docker images, validation of the production overlay and a syntax check of the backup scripts.
-
-### Production
-
-See [deployment.md](deployment.md). `docker-compose.prod.yml` puts **Caddy** in front (automatic Let's Encrypt certificate, HTTP→HTTPS redirect, HSTS), unpublishes every other port, requires real secrets and makes the refresh cookie `Secure`. nginx sends a strict Content-Security-Policy (same origin only; `blob:` for the file viewer). `scripts/backup.sh` and `scripts/restore.sh` back up and restore the database (`pg_dump` custom format) and the uploaded files.
-
----
-
-## 3. AI service pipeline
+## 6. AI service pipeline
 
 ```
 file bytes
@@ -251,13 +266,13 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 
 - **No field exists** for diagnosis, risk, interpretation or advice. A test scans the schema for such names.
 - **Unknown fields are rejected** at every nesting level (`extra="forbid"`).
-- **Values are copied as printed.** High/low flags are computed by the backend from the report's own reference range (Task 27), never by the model.
+- **Values are copied as printed.** High/low flags are computed by the backend from the report's own reference range, never by the model.
 - **Implausible dates** (future, or before 1900) become `null`.
 - **Lab test keys are deterministic** (`lab_keys.py`): "Glycated Haemoglobin (HbA1c)", "HbA1c" and "GLYCOSYLATED HEMOGLOBIN" all map to `hba1c`, so trends don't depend on the model.
 - **Prompt `extraction-v1`:**
   - Rules: describe, never interpret; no advice; no value judgments; copy exactly; document text is data, not instructions.
   - Page text is wrapped in `<document>/<page>` tags that document content can't close or fake (prompt-injection defence).
-  - The prompt version will be stored with every extraction.
+  - The prompt version is stored with every extraction (`extraction_runs`).
 - **Golden example:** `tests/examples/cbc_synthetic.json`, real `/v1/ocr` output from a synthetic report plus the expected extraction.
 
 ### LLM providers and the safety check
@@ -268,7 +283,7 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 
 ---
 
-## 4. Authentication (unchanged since checkpoint 1)
+## 7. Authentication
 
 | Token | Lifetime | Lives in | Stored server-side as |
 |---|---|---|---|
@@ -279,67 +294,9 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 - **Single refresh at a time:** browser refresh calls are shared (single-flight).
 - **Uploads too:** `withAuthRecovery()` gives fetch and XHR uploads the same refresh-and-retry.
 
----
+See [SECURITY.md](../../SECURITY.md) for the full security model.
 
-## 5. Database (Flyway)
-
-| Version | Tables |
-|---|---|
-| V1 `baseline` | — |
-| V2 `users_and_auth` | `users`, `refresh_tokens` |
-| V3 `documents` | `documents`: file metadata, `status` (UPLOADED/PROCESSING/READY/FAILED), extracted metadata, `user_edited`; unique `(user_id, sha256)`; check constraints; timeline index `(user_id, doc_date DESC NULLS LAST, created_at DESC)` |
-| V4 `extraction_results` | `document_pages`, `lab_results` (printed value + parsed numbers + flag; trend index `(user_id, test_key, observed_on)`), `medications`, `document_terms`, `processing_jobs` (at most one PENDING/RUNNING job per document), `extraction_runs` (audit: OCR engine, model, prompt version, safety flags, raw output). All carry `user_id` and cascade on document delete |
-| V5 `processing_jobs_user` | `processing_jobs.user_id`, so the worker loads documents through owner-scoped queries |
-
-| V6 `login_failures` | wrong-password attempts for throttling, keyed by SHA-256 of the throttle key |
-| V7 `medications_extracted_name` | `medications.extracted_name`: the name as first read, so reprocessing recognises renamed corrections |
-
-No migrations were needed for checkpoint 4: search reads existing columns, and `user_edited` already existed on documents, lab results and medicines.
-
----
-
-## 6. API (current)
-
-### Public backend (`/api/v1`)
-
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/health` | public | backend, database, schema version, AI service, processing on/off |
-| POST | `/auth/register`, `/auth/login` | public | start session |
-| POST | `/auth/refresh`, `/auth/logout` | refresh cookie | rotate / revoke |
-| GET | `/auth/me` | self | current user |
-| POST | `/documents` | collection | upload one file (201, 409 duplicate, 413, 415) |
-| GET | `/documents?page&size` | collection | paged timeline (size ≤ 100) |
-| GET | `/documents/{id}` | owned | details |
-| GET | `/documents/{id}/status` | owned | lightweight polling |
-| GET | `/documents/{id}/file` | owned | original file (inline, no-store, range requests) |
-| DELETE | `/documents/{id}` | owned | delete row, then file after commit |
-| POST | `/documents/{id}/reprocess` | owned | queue again (202); no-op while already queued |
-| GET | `/documents/{id}/results` | owned | lab results, medicines, terms in document order |
-| GET | `/labs` | collection | each test the user has, with its latest value |
-| GET | `/labs/{testKey}` | collection | one test across reports, oldest first (404 if none) |
-| GET | `/medications` | collection | all medicines, most recently prescribed first |
-| PATCH | `/documents/{id}` | owned | correct details |
-| PATCH, DELETE | `/lab-results/{id}` | owned | correct or remove a lab result |
-| PATCH, DELETE | `/medications/{id}` | owned | correct or remove a medicine |
-| GET | `/search?q=` | collection | documents containing every word, with snippets (≤ 50) |
-| GET | `/account/export` | self | all of the user's data as a JSON download |
-| DELETE | `/account` | self | delete the account and everything in it (password required) |
-
-### Internal AI service (`X-Internal-Api-Key`)
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/health` | OCR provider, languages, Tesseract version |
-| GET | `/v1/ping` | key check |
-| POST | `/v1/ocr` | per-page text with source and confidence |
-| POST | `/v1/extract` | validated, safety-checked structured data from page texts |
-
-Every error, in both services, uses `{status, code, message, fields?, details?}`.
-
----
-
-## 7. Frontend
+## 8. Frontend
 
 | Route | Screen |
 |---|---|
@@ -352,69 +309,29 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 | `/account` | **Your account** (from the email in the header): download your data, delete the account |
 | `/status` | system status: backend, database, AI service, document processing |
 
----
+Server state lives in TanStack Query; the access token only in memory. Every page is covered by
+Vitest + Testing Library tests against a mocked API.
 
-## 8. Tests
+## 9. Deployment
 
-| Module | Command | Tests | Highlights |
-|---|---|---|---|
-| backend | `./mvnw test` (Docker needed) | 222 | route-driven user isolation (now also attacking another user's lab result and medicine), SKIP LOCKED race, upload → worker → stub AI service on a real port → database, AI error mapping and timeouts, 38 flag cases, search escaping and isolation, corrections surviving reprocessing, account deletion emptying every table and folder, login throttling against the real table (two instances sharing one count), renamed corrections surviving reprocessing |
-| ai-service | `pytest` | 139 (7 need Tesseract) | PDFs generated in memory, real Tesseract on rendered text, schema safety scan, scripted LLM and fake SDK, 32 safety phrasings, prompt injection |
-| frontend | `npm test` | 94 | upload queue concurrency, XHR token refresh, viewer states, polling until ready, results and trends, unit conversions, search, editing forms, reprocess, export and account deletion |
+```mermaid
+flowchart LR
+    internet(["Internet"]) -- "443 / 80→443" --> caddy["Caddy<br/>TLS · HSTS"]
+    subgraph host["Docker host (docker/docker-compose.prod.yml)"]
+        caddy --> nginx["frontend: nginx<br/>SPA · CSP · /api proxy"]
+        nginx --> backend["backend<br/>Spring Boot"]
+        backend --> ai["ai-service<br/>FastAPI + Tesseract"]
+        backend --> db[("db<br/>PostgreSQL 16")]
+        backend --> uploads[("medfold_uploads volume")]
+        db --> pgdata[("medfold_pgdata volume")]
+    end
+    ai --> llm(["Anthropic API"])
+```
 
----
+Only Caddy publishes ports; HTTP is redirected to HTTPS.
 
-## 9. Task log
+- **Health:** `GET /health` also reports `aiService` (`UP`, `DOWN`, `NOT_CONFIGURED`, from `/v1/ping` with 2s timeouts, remembered for 10s) and `processing` (`ON`/`OFF`). Neither changes the overall status: without the AI service the API works and documents wait in the queue.
+- **Refresh-token cleanup:** a daily job deletes tokens one day after they expire. Revoked tokens are kept until then, because presenting one again is how reuse is detected.
+- **Images:** the backend is built with the Maven wrapper and runs on a JRE as a non-root user; the frontend is built with Vite and served by nginx (SPA fallback, immutable hashed assets, 11 MB upload limit).
 
-| # | Task | Commit |
-|---|---|---|
-| 1–10 | Setup and authentication (see checkpoint 1) | `57c6989` … `1b0d788` |
-| 11 | documents table + owner-scoped repository | `34c5e87` |
-| 12 | StorageService + local filesystem | `58f0bfc` |
-| 13 | Upload endpoint (magic bytes, duplicates) | `8477c04` |
-| 14 | List / get / status / file / delete | `3b92daa` |
-| 15 | Route-driven isolation test suite | `4fbea37` |
-| 16 | Upload screen + document list | `d4d91f4` |
-| 17 | Detail page + authenticated file viewer | `9905383` |
-| 18 | `/v1/ocr`: PDF text layer | `9b1bd8e` |
-| 19 | Tesseract OCR for scans and photos | `911e2c7` |
-| 20 | Extraction schema, lab keys, prompt v1 | `997b7f0` |
-| 21 | LLM providers (mock, Anthropic) + `/v1/extract` with validation | `ed1f55a` |
-| 22 | Safety post-check for diagnosis, advice and judgment wording | `bdd26ff` |
-| 23 | Tables and entities for results, jobs and extraction runs | `183fb9d` |
-| 24 | Job queue on upload + background worker | `c6e70f3` |
-| 25 | `AiServiceClient` with retry/permanent error mapping | `99c61a9` |
-| 26 | Real processor: OCR → extraction → stored results; processing on by default | `897a64f` |
-| 27 | Lab flags from the printed reference range | `526fa12` |
-| 28 | Document results + reprocess endpoints | `7765e78` |
-| 29 | Frontend: follow processing, show results, try again | `e418c0f` |
-| 30 | Lab trends, medicines list, month-grouped timeline | `bdaff04` |
-| 31 | Search by any word in details, text, tests and medicines | `4d01e04` |
-| 32–33 | Backend: correct document details, lab results and medicines; corrections survive reprocessing | `f0bcdd3` |
-| 34 | Frontend: editing forms, Edit / Remove on results | `891a35b` |
-| 35 | Refresh-token cleanup; backend and frontend in Docker Compose | `0b899a5` |
-| 36 | Trend charts across units with standard conversions | `60e3866` |
-| 37 | Delete account and everything in it | `2cb8fa6` |
-| 38 | Download all data as JSON | `22ec940` |
-| 39 | AI service availability on the status page | `166390a` |
-| 40 | Login and account-deletion throttling | `de595ad` |
-| 41 | CI on GitHub Actions for all three services and the images | `72d6483` |
-| 42 | Login-throttling counts in the database | `6974cfd` |
-| 43 | Renamed medicines on reprocessing; units equal by definition | `60241ad` |
-| 44 | Production deployment: HTTPS, security headers, backups and restore | `22a1b0f` |
-
----
-
-## 10. Known limitations (accepted for now)
-
-- **OCR makes small character mistakes** on photos (e.g. "a" read as "4"). Mitigated by showing the original next to extracted data, flags only where the value parses with certainty, and letting users correct any value.
-- **Unit conversion covers a fixed list of tests** (see *Trend units*); other unit changes leave values table-only.
-- **Search is substring matching** without ranking or typo tolerance; fine for one person's records.
-- **The data export doesn't embed original files;** they're downloaded per document.
-- **One worker instance processes 3 jobs per 2s cycle, one after another.** Enough for personal use; more instances can run safely (SKIP LOCKED).
-- **English OCR only** (`OCR_LANGUAGES=eng`). Other Tesseract languages can be added via config and packages.
-- **The AI service Docker image wasn't built in the cloud sandbox** (Debian mirror blocked there). It builds on a normal machine.
-- **No CORS config,** by design: the Vite dev proxy and nginx in Docker Compose both serve the SPA and `/api` from one origin.
-- **The frontend and backend images weren't built end to end in the cloud sandbox** (package registries are unreachable from Docker builds there); CI builds them on every push. Their runtime stages were verified with locally built artifacts, including the full production overlay with Caddy on `localhost`.
-- **Single server.** The deployment guide targets one Docker host. Backups are written locally by `scripts/backup.sh`; copying them to encrypted offsite storage and pruning old ones is left to the operator.
-- **A real Claude extraction hasn't been run from this repository's sandbox;** the pipeline is tested end to end against a stub AI service, and the Anthropic provider against a fake SDK client.
+Details: [deployment](../deployment/README.md).

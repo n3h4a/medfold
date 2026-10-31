@@ -40,7 +40,7 @@ or `AI_INTERNAL_KEY` is empty, and always sends the refresh cookie as `Secure`.
 ## 3. Start
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml up -d --build
 ```
 
 Open `https://<MEDFOLD_DOMAIN>`, register, and check **System status** (link in the footer):
@@ -67,7 +67,7 @@ This writes `medfold-<time>.dump` (the database) and `medfold-<time>-uploads.tar
 files), readable only by the user running it. Run it daily, for example with cron:
 
 ```
-17 3 * * * cd /opt/medfold && COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml" scripts/backup.sh /var/backups/medfold
+17 3 * * * cd /opt/medfold && COMPOSE="docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml" scripts/backup.sh /var/backups/medfold
 ```
 
 Backups contain medical records: copy them to **encrypted** storage off the server, and delete
@@ -76,7 +76,7 @@ old ones on a schedule you choose.
 ## 5. Restore
 
 ```bash
-COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml" \
+COMPOSE="docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml" \
   scripts/restore.sh /var/backups/medfold/medfold-<time>.dump /var/backups/medfold/medfold-<time>-uploads.tar.gz
 ```
 
@@ -88,7 +88,7 @@ then restore. Test a restore on a spare server now and then; an untested backup 
 
 ```bash
 git pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml up -d --build
 ```
 
 Database migrations run automatically when the backend starts. Take a backup first.
