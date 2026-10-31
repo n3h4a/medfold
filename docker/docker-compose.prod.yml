@@ -1,6 +1,6 @@
 # Production overlay: HTTPS in front, nothing else reachable from outside.
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-# See docs/deployment.md.
+#   docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml up -d --build
+# See docs/deployment/production.md.
 
 services:
   caddy:
@@ -16,7 +16,7 @@ services:
       - "443:443"
       - "443:443/udp"
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       # Certificates; keep this volume, or Let's Encrypt rate limits can bite on rebuilds.
       - caddy_data:/data
       - caddy_config:/config
