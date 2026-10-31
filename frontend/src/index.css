@@ -1,13 +1,135 @@
 @import "tailwindcss";
 
+/* Dark mode follows a class on <html>, set by the theme toggle (see app/theme.ts). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-brand-50: #eef7f6;
   --color-brand-100: #d5ecea;
+  --color-brand-200: #a9d8d3;
+  --color-brand-400: #4fb3a9;
   --color-brand-500: #2a8c84;
   --color-brand-600: #1f726b;
   --color-brand-700: #195b56;
+  /* Brand-coloured text and links; lighter in dark mode. */
+  --color-brand-ink: #1f726b;
+  /* Cards and panels. */
+  --color-surface: #ffffff;
+
+  --animate-rise: rise 0.35s ease-out both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: -400px 0;
+    }
+    to {
+      background-position: 400px 0;
+    }
+  }
+}
+
+/*
+ * Dark mode remaps the palette instead of adding dark: classes everywhere: greys flip, and the
+ * pale tints used for badges and alerts become deep ones with light text. Solid button colours
+ * (brand-600, red-600) stay as they are.
+ */
+.dark {
+  color-scheme: dark;
+  --color-surface: oklch(21% 0.032 262);
+  --color-brand-ink: #6cc8bd;
+  --color-brand-50: oklch(28% 0.045 190);
+  --color-brand-100: oklch(32% 0.055 188);
+  --color-brand-200: oklch(40% 0.07 186);
+
+  --color-slate-50: oklch(16.5% 0.03 265);
+  --color-slate-100: oklch(25% 0.032 262);
+  --color-slate-200: oklch(31% 0.034 260);
+  --color-slate-300: oklch(39% 0.038 258);
+  --color-slate-400: oklch(56% 0.035 257);
+  --color-slate-500: oklch(67% 0.03 257);
+  --color-slate-600: oklch(76% 0.025 255);
+  --color-slate-700: oklch(84% 0.018 253);
+  --color-slate-800: oklch(90% 0.012 250);
+  --color-slate-900: oklch(96% 0.006 248);
+
+  --color-red-50: oklch(27% 0.07 22);
+  --color-red-100: oklch(31% 0.09 22);
+  --color-red-200: oklch(38% 0.11 22);
+  --color-red-700: oklch(78% 0.12 20);
+  --color-red-800: oklch(85% 0.09 20);
+  --color-emerald-50: oklch(26% 0.05 165);
+  --color-emerald-100: oklch(30% 0.06 165);
+  --color-emerald-200: oklch(37% 0.07 165);
+  --color-emerald-700: oklch(82% 0.12 164);
+  --color-emerald-800: oklch(87% 0.1 164);
+  --color-amber-50: oklch(27% 0.05 70);
+  --color-amber-100: oklch(31% 0.06 70);
+  --color-amber-200: oklch(38% 0.08 70);
+  --color-amber-800: oklch(87% 0.12 85);
+  --color-amber-900: oklch(91% 0.09 90);
+  --color-sky-50: oklch(26% 0.05 240);
+  --color-sky-100: oklch(30% 0.06 240);
+  --color-sky-700: oklch(80% 0.1 235);
+  --color-sky-800: oklch(86% 0.08 235);
+  --color-violet-50: oklch(27% 0.06 290);
+  --color-violet-700: oklch(80% 0.1 290);
 }
 
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* Loading placeholders. */
+.skeleton {
+  @apply rounded-md bg-slate-200;
+  background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  background-size: 400px 100%;
+  background-repeat: no-repeat;
+  animation: var(--animate-shimmer);
+}
+.dark .skeleton {
+  background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Printing (the visit summary): paper is always light, navigation is hidden. */
+@media print {
+  .dark {
+    color-scheme: light;
+  }
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-plain {
+    box-shadow: none !important;
+    border-color: #ddd !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  @page {
+    margin: 14mm;
+  }
 }

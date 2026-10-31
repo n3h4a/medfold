@@ -24,7 +24,7 @@ function ExportData() {
   })
 
   return (
-    <section aria-labelledby="export-heading" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section aria-labelledby="export-heading" className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
       <h2 id="export-heading" className="text-sm font-semibold text-slate-900">
         Download your data
       </h2>
@@ -65,7 +65,7 @@ function DeleteAccount() {
   const errors = fieldErrors(remove.error)
 
   return (
-    <section aria-labelledby="delete-heading" className="rounded-xl border border-red-200 bg-white p-4 shadow-sm">
+    <section aria-labelledby="delete-heading" className="rounded-xl border border-red-200 bg-surface p-4 shadow-sm">
       <h2 id="delete-heading" className="text-sm font-semibold text-red-800">
         Delete account
       </h2>
@@ -97,7 +97,7 @@ function DeleteAccount() {
         <button
           type="submit"
           disabled={remove.isPending || password.length === 0}
-          className="rounded-lg bg-red-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50"
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50"
         >
           {remove.isPending ? 'Deleting…' : 'Delete my account'}
         </button>

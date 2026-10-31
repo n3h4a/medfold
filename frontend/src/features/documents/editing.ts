@@ -17,4 +17,4 @@ export function useRemove(remove: () => Promise<unknown>) {
 }
 
 export const smallButton =
-  'rounded px-1.5 py-0.5 text-xs font-medium text-brand-700 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50'
+  'rounded px-1.5 py-0.5 text-xs font-medium text-brand-ink hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50'

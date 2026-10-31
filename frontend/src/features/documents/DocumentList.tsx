@@ -1,23 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { documentsApi, type MedicalDocument } from '../../api/documents.ts'
+import { documentsApi, type DocumentType, type MedicalDocument } from '../../api/documents.ts'
 import { errorMessage } from '../../auth/errors.ts'
 import { displayTitle, formatBytes, formatDate, isInProgress, polling, timelineGroup, typeLabel } from './format.ts'
+import { DocumentTypeIcon } from './DocumentTypeIcon.tsx'
 import { StatusPill } from './StatusPill.tsx'
-
-function FileIcon({ mimeType }: { mimeType: string }) {
-  const isPdf = mimeType === 'application/pdf'
-  return (
-    <div
-      aria-hidden="true"
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-semibold ${
-        isPdf ? 'bg-red-50 text-red-700' : 'bg-sky-50 text-sky-700'
-      }`}
-    >
-      {isPdf ? 'PDF' : 'IMG'}
-    </div>
-  )
-}
+import { EmptyState, Problem, SkeletonList } from '../../components/ui.tsx'
+import { FolderIcon } from '../../components/icons.tsx'
 
 function DocumentRow({ document }: { document: MedicalDocument }) {
   const queryClient = useQueryClient()
@@ -33,12 +22,12 @@ function DocumentRow({ document }: { document: MedicalDocument }) {
   ].filter(Boolean)
 
   return (
-    <li className="relative flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
-      <FileIcon mimeType={document.mimeType} />
+    <li className="relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50">
+      <DocumentTypeIcon type={document.docType} mimeType={document.mimeType} />
       <div className="min-w-0 flex-1">
         <Link
           to={`/documents/${document.id}`}
-          className="block truncate font-medium text-slate-900 after:absolute after:inset-0 hover:text-brand-700 focus:outline-none focus-visible:underline"
+          className="block truncate font-medium text-slate-900 after:absolute after:inset-0 hover:text-brand-ink focus:outline-none focus-visible:underline"
         >
           {title}
         </Link>
@@ -72,7 +61,8 @@ function groupByMonth(documents: MedicalDocument[]): [string, MedicalDocument[]]
   return [...groups.entries()]
 }
 
-export function DocumentList() {
+/** Every document in timeline order, optionally only one kind. */
+export function DocumentList({ type = null }: { type?: DocumentType | null }) {
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['documents'],
     queryFn: () => documentsApi.list(),
@@ -82,35 +72,32 @@ export function DocumentList() {
   })
 
   if (isPending) {
-    return <p className="text-sm text-slate-500" role="status">Loading your documents…</p>
+    return <SkeletonList label="Loading your documents…" />
   }
   if (isError) {
-    return (
-      <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-        {errorMessage(error)}
-      </p>
-    )
+    return <Problem>{errorMessage(error)}</Problem>
   }
   if (data.items.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center">
-        <p className="font-medium text-slate-900">No documents yet</p>
-        <p className="mt-1 text-sm text-slate-500">Upload a lab report, prescription or discharge summary to get started.</p>
-      </div>
+      <EmptyState icon={<FolderIcon />} title="No documents yet">
+        Upload a lab report, prescription or discharge summary to get started.
+      </EmptyState>
     )
   }
+  const items = type ? data.items.filter((d) => d.docType === type) : data.items
 
   return (
     <section aria-labelledby="documents-heading">
       <h2 id="documents-heading" className="mb-2 text-sm font-semibold text-slate-900">
-        {data.totalItems} {data.totalItems === 1 ? 'document' : 'documents'}
+        {type ? `${items.length} of ${data.totalItems}` : data.totalItems} {data.totalItems === 1 ? 'document' : 'documents'}
       </h2>
       {/* The API returns timeline order (record date, newest first; undated last), so groups come out in order. */}
-      <div className="space-y-4">
-        {groupByMonth(data.items).map(([month, documents]) => (
-          <div key={month}>
-            <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">{month}</h3>
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="relative space-y-6 border-l-2 border-slate-200 pl-6">
+        {groupByMonth(items).map(([month, documents]) => (
+          <div key={month} className="relative">
+            <span aria-hidden="true" className="absolute -left-[33px] top-0.5 h-4 w-4 rounded-full border-4 border-slate-50 bg-brand-500" />
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{month}</h3>
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-sm">
               {documents.map((document) => (
                 <DocumentRow key={document.id} document={document} />
               ))}

@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type DragEvent } from 'react'
+import { UploadIcon } from '../../components/icons.tsx'
 import { ACCEPT_ATTRIBUTE } from './validateFile.ts'
 
 export function UploadDropzone({ onFiles }: { onFiles: (files: File[]) => void }) {
@@ -20,22 +21,24 @@ export function UploadDropzone({ onFiles }: { onFiles: (files: File[]) => void }
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
-      className={`rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors ${
-        dragging ? 'border-brand-500 bg-brand-50' : 'border-slate-300 bg-white'
+      className={`flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-6 py-7 text-center transition-all sm:flex-row sm:text-left ${
+        dragging ? 'scale-[1.01] border-brand-500 bg-brand-50' : 'border-slate-300 bg-surface hover:border-brand-400'
       }`}
     >
-      <svg aria-hidden="true" viewBox="0 0 24 24" className="mx-auto h-10 w-10 text-brand-600" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-      </svg>
-      <p className="mt-3 font-medium text-slate-900">Drag and drop your medical documents here</p>
-      <p id={hintId} className="mt-1 text-sm text-slate-500">
-        PDF, JPG or PNG · up to 10 MB each
-      </p>
+      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700 text-white shadow-md shadow-brand-500/20">
+        <UploadIcon className="h-7 w-7" />
+      </span>
+      <div className="flex-1">
+        <p className="font-medium text-slate-900">Drag and drop your medical documents here</p>
+        <p id={hintId} className="mt-1 text-sm text-slate-500">
+          PDF, JPG or PNG · up to 10 MB each · lab reports, prescriptions, scans, photos
+        </p>
+      </div>
       <button
         type="button"
         aria-describedby={hintId}
         onClick={() => inputRef.current?.click()}
-        className="mt-4 rounded-lg bg-brand-600 px-4 py-2 font-medium text-white shadow-sm hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+        className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 font-medium text-white shadow-sm hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
       >
         Choose files
       </button>

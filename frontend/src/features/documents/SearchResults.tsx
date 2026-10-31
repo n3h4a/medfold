@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { recordsApi } from '../../api/records.ts'
 import { errorMessage } from '../../auth/errors.ts'
+import { Highlight } from '../../components/Highlight.tsx'
 import { displayTitle, formatDate, typeLabel } from './format.ts'
 
 /** Documents containing every word of the query: details, page text, test or medicine names. */
@@ -21,7 +22,7 @@ export function SearchResults({ query }: { query: string }) {
   }
   if (data.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center">
+      <div className="rounded-xl border border-slate-200 bg-surface px-6 py-10 text-center">
         <p className="font-medium text-slate-900">Nothing found for “{query}”</p>
         <p className="mt-1 text-sm text-slate-500">Try another word, such as a test, medicine, doctor or hospital name.</p>
       </div>
@@ -34,12 +35,12 @@ export function SearchResults({ query }: { query: string }) {
         {data.length} {data.length === 1 ? 'match' : 'matches'}
         {data.length === 50 && ' (showing the first 50)'}
       </h2>
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-sm">
         {data.map(({ document, snippet, pageNumber }) => (
           <li key={document.id} className="relative px-4 py-3 hover:bg-slate-50">
             <Link
               to={`/documents/${document.id}`}
-              className="block truncate font-medium text-slate-900 after:absolute after:inset-0 hover:text-brand-700 focus:outline-none focus-visible:underline"
+              className="block truncate font-medium text-slate-900 after:absolute after:inset-0 hover:text-brand-ink focus:outline-none focus-visible:underline"
             >
               {displayTitle(document)}
             </Link>
@@ -51,7 +52,7 @@ export function SearchResults({ query }: { query: string }) {
             {snippet && (
               <p className="mt-1 text-sm text-slate-600">
                 {pageNumber && <span className="text-slate-400">Page {pageNumber}: </span>}
-                {snippet}
+                <Highlight text={snippet} words={query.split(/\s+/)} />
               </p>
             )}
           </li>

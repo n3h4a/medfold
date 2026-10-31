@@ -141,7 +141,7 @@ describe('document detail page', () => {
     renderApp('/documents/nope')
 
     expect(await screen.findByRole('heading', { name: 'Document not found' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /All documents/ })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: /All documents/ })).toHaveAttribute('href', '/documents')
   })
 
   it('shows an error in the viewer if the file itself is missing', async () => {
@@ -171,7 +171,7 @@ describe('document detail page', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete document' }))
 
     expect(await screen.findByRole('heading', { name: 'Your documents' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/')
+    expect(router.state.location.pathname).toBe('/documents')
   })
 
   it('is reachable from the document list', async () => {
@@ -182,7 +182,7 @@ describe('document detail page', () => {
       'GET /documents/doc-1/file': fileResponse('application/pdf'),
       'GET /documents/doc-1/results': () => json(200, noResults),
     })
-    const { router } = renderApp('/')
+    const { router } = renderApp('/documents')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('link', { name: 'Complete Blood Count' }))

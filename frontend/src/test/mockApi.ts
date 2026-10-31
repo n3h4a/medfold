@@ -14,6 +14,8 @@ export const emptyPage = { items: [], page: 0, size: 50, totalItems: 0, totalPag
 /** Requests every logged-in page makes; tests override them when they care. */
 const defaultHandlers: Record<string, Handler> = {
   'GET /documents': () => json(200, emptyPage),
+  'GET /labs': () => json(200, []),
+  'GET /medications': () => json(200, []),
   'GET /health': () => json(200, { service: 'medfold-backend', status: 'UP', database: 'UP', schemaVersion: '3' }),
 }
 

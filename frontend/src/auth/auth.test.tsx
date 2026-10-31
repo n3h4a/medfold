@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest'
 import { authApi } from '../api/auth.ts'
 import { getAccessToken } from '../api/client.ts'
 import { authResponse, demoUser, health, json, mockApi, noSession } from '../test/mockApi.ts'
+
+/** The home page greets the user by first name. */
+const overviewHeading = /^Good (morning|afternoon|evening)\b/
 import { renderApp } from '../test/renderApp.tsx'
 import { refreshSession } from './session.ts'
 
@@ -22,7 +25,7 @@ describe('session restore', () => {
 
     renderApp('/')
 
-    expect(await screen.findByRole('heading', { name: 'Your documents' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: overviewHeading })).toBeInTheDocument()
     expect(screen.getByText(demoUser.email)).toBeInTheDocument()
     expect(getAccessToken()).toBe('access-token-1')
   })
@@ -59,7 +62,7 @@ describe('login', () => {
     await user.type(screen.getByLabelText('Password'), 'correct-horse-battery')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
 
-    expect(await screen.findByRole('heading', { name: 'Your documents' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: overviewHeading })).toBeInTheDocument()
     expect(router.state.location.pathname + router.state.location.search).toBe('/?tab=labs')
     const loginCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/auth/login'))
     expect(JSON.parse(String(loginCall?.[1]?.body))).toEqual({
@@ -159,7 +162,7 @@ describe('register', () => {
     await user.type(screen.getByLabelText('Password'), 'correct-horse-battery')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
-    expect(await screen.findByRole('heading', { name: 'Your documents' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: overviewHeading })).toBeInTheDocument()
   })
 })
 
@@ -201,14 +204,14 @@ describe('expired access token', () => {
       'GET /health': health,
     })
     renderApp('/')
-    await screen.findByRole('heading', { name: 'Your documents' })
+    await screen.findByRole('heading', { name: overviewHeading })
 
     const results = await act(() => Promise.all([authApi.me(), authApi.me(), authApi.me()]))
 
     expect(results.map((user) => user.email)).toEqual([demoUser.email, demoUser.email, demoUser.email])
     const refreshCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/auth/refresh'))
     expect(refreshCalls).toHaveLength(2)
-    expect(screen.getByRole('heading', { name: 'Your documents' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: overviewHeading })).toBeInTheDocument()
   })
 
   it('returns to login with a message when the session has ended', async () => {
@@ -219,7 +222,7 @@ describe('expired access token', () => {
       'GET /health': health,
     })
     const { router } = renderApp('/')
-    await screen.findByRole('heading', { name: 'Your documents' })
+    await screen.findByRole('heading', { name: overviewHeading })
 
     await act(() => authApi.me().catch(() => undefined))
 

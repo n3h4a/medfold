@@ -19,11 +19,11 @@ export function UploadQueue({ items, onClear }: { items: UploadItem[]; onClear: 
   const hasFinished = items.some((item) => item.state === 'done' || item.state === 'error')
 
   return (
-    <section aria-label="Uploads" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section aria-label="Uploads" className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-900">Uploads</h2>
         {hasFinished && (
-          <button type="button" onClick={onClear} className="text-sm font-medium text-brand-600 hover:underline">
+          <button type="button" onClick={onClear} className="text-sm font-medium text-brand-ink hover:underline">
             Clear finished
           </button>
         )}

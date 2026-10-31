@@ -88,7 +88,7 @@ export function DocumentDetailsForm({ document, onDone }: { document: MedicalDoc
           id="edit-doc-type"
           value={values.docType}
           onChange={set('docType')}
-          className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          className="mt-1 block w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
         >
           {!document.docType && <option value="">Not set</option>}
           {Object.entries(typeLabel).map(([value, label]) => (
@@ -118,7 +118,7 @@ export function DocumentDetailsForm({ document, onDone }: { document: MedicalDoc
           maxLength={2000}
           value={values.summary}
           onChange={set('summary')}
-          className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          className="mt-1 block w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>
       <p className="text-xs text-slate-500">Your corrections are kept if the document is processed again.</p>

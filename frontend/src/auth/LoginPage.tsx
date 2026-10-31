@@ -5,6 +5,12 @@ import { AuthCard, FormError, SubmitButton } from './AuthCard.tsx'
 import { errorMessage, fieldErrors } from './errors.ts'
 import { useAuth } from './useAuth.ts'
 
+/** Set on demo deployments (VITE_DEMO_EMAIL / VITE_DEMO_PASSWORD) so visitors can try the app in one click. */
+const demo =
+  import.meta.env.VITE_DEMO_EMAIL && import.meta.env.VITE_DEMO_PASSWORD
+    ? { email: String(import.meta.env.VITE_DEMO_EMAIL), password: String(import.meta.env.VITE_DEMO_PASSWORD) }
+    : null
+
 export function LoginPage() {
   const { state, login } = useAuth()
   const sessionExpired = state.status === 'anonymous' && state.reason === 'expired'
@@ -57,10 +63,22 @@ export function LoginPage() {
           error={fields.password}
         />
         <SubmitButton pending={pending}>{pending ? 'Logging in…' : 'Log in'}</SubmitButton>
+        {demo && (
+          <button
+            type="button"
+            onClick={() => {
+              setEmail(demo.email)
+              setPassword(demo.password)
+            }}
+            className="w-full rounded-lg border border-dashed border-brand-400 px-4 py-2.5 text-sm font-medium text-brand-ink hover:bg-brand-50"
+          >
+            Fill in the demo account
+          </button>
+        )}
       </form>
       <p className="mt-6 text-center text-sm text-slate-600">
         New to Medfold?{' '}
-        <Link to="/register" className="font-medium text-brand-600 hover:underline">
+        <Link to="/register" className="font-medium text-brand-ink hover:underline">
           Create an account
         </Link>
       </p>

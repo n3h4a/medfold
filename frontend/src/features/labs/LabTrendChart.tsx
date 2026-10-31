@@ -71,7 +71,7 @@ export function LabTrendChart({ testName, results }: { testName: string; results
   const tooltipHeight = activePoint?.converted ? TOOLTIP.convertedHeight : TOOLTIP.height
 
   return (
-    <figure className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <figure className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
       <figcaption className="text-sm font-semibold text-slate-900">
         {testName} over time{unit && <span className="font-normal text-slate-500"> ({unit})</span>}
       </figcaption>

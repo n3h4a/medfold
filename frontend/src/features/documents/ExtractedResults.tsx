@@ -25,7 +25,7 @@ function FlagBadge({ flag }: { flag: LabFlag | null }) {
 
 function Card({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section aria-labelledby={id} className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
       <h2 id={id} className="text-sm font-semibold text-slate-900">
         {title}
       </h2>
@@ -75,7 +75,7 @@ function LabRow({ result }: { result: LabResult }) {
   return (
     <tr>
       <th scope="row" className="px-4 py-2 font-medium text-slate-900">
-        <Link to={`/labs/${encodeURIComponent(result.testKey)}`} className="hover:text-brand-700 hover:underline">
+        <Link to={`/labs/${encodeURIComponent(result.testKey)}`} className="hover:text-brand-ink hover:underline">
           {result.testName}
         </Link>
         <EditedMark show={result.userEdited} />

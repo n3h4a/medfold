@@ -14,7 +14,7 @@ import { StatusPill } from './StatusPill.tsx'
 
 function BackLink() {
   return (
-    <Link to="/" className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+    <Link to="/documents" className="inline-flex items-center gap-1 text-sm font-medium text-brand-ink hover:underline">
       <span aria-hidden="true">←</span> All documents
     </Link>
   )
@@ -50,7 +50,7 @@ function DetailsPanel({ document }: { document: MedicalDocument }) {
     mutationFn: () => documentsApi.remove(document.id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['documents'] })
-      navigate('/', { replace: true })
+      navigate('/documents', { replace: true })
     },
   })
   const reprocess = useReprocess(document)
@@ -59,7 +59,7 @@ function DetailsPanel({ document }: { document: MedicalDocument }) {
 
   if (editing) {
     return (
-      <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <aside className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
         <DocumentDetailsForm document={document} onDone={() => setEditing(false)} />
       </aside>
     )
@@ -67,14 +67,14 @@ function DetailsPanel({ document }: { document: MedicalDocument }) {
 
   return (
     <aside className="space-y-4">
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-xs text-slate-500">{document.userEdited ? 'Edited by you' : 'Read from the document'}</span>
           {!isInProgress(document.status) && (
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="rounded px-1.5 py-0.5 text-sm font-medium text-brand-700 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="rounded px-1.5 py-0.5 text-sm font-medium text-brand-ink hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               Edit details
             </button>
@@ -95,7 +95,7 @@ function DetailsPanel({ document }: { document: MedicalDocument }) {
         </dl>
       </section>
 
-      <section aria-labelledby="summary-heading" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section aria-labelledby="summary-heading" className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
         <h2 id="summary-heading" className="text-sm font-semibold text-slate-900">
           Summary
         </h2>
@@ -152,7 +152,7 @@ function FailureNotice({ document }: { document: MedicalDocument }) {
         type="button"
         disabled={reprocess.isPending}
         onClick={() => reprocess.mutate()}
-        className="rounded-lg border border-red-300 bg-white px-3 py-1 font-medium text-red-800 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50"
+        className="rounded-lg border border-red-300 bg-surface px-3 py-1 font-medium text-red-800 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50"
       >
         Try again
       </button>
@@ -177,7 +177,7 @@ export function DocumentDetailPage() {
     return (
       <div className="space-y-4">
         <BackLink />
-        <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center">
+        <div className="rounded-xl border border-slate-200 bg-surface px-6 py-10 text-center">
           <h1 className="font-medium text-slate-900">{notFound ? 'Document not found' : 'Could not load this document'}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {notFound ? 'It may have been deleted, or the link is wrong.' : errorMessage(error)}

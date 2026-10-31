@@ -33,11 +33,13 @@ const hba1cTrend = {
 const summaries: LabTestSummary[] = [
   {
     testKey: 'fasting_glucose', testName: 'Fasting glucose', unit: 'mg/dL', resultCount: 1, latestValueText: '92',
-    latestFlag: 'NORMAL', latestObservedOn: '2025-06-01', latestDocumentId: 'doc-1',
+    latestFlag: 'NORMAL', latestObservedOn: '2025-06-01', latestDocumentId: 'doc-1', latestRefText: '70 - 100', previousValueText: null,
+    previousObservedOn: null,
   },
   {
     testKey: 'hba1c', testName: 'HbA1c', unit: '%', resultCount: 4, latestValueText: '6.1', latestFlag: 'HIGH',
-    latestObservedOn: '2026-06-01', latestDocumentId: 'doc-2',
+    latestObservedOn: '2026-06-01', latestDocumentId: 'doc-2', latestRefText: '4.0 - 5.6', previousValueText: '5.4',
+    previousObservedOn: '2025-06-01',
   },
 ]
 
@@ -97,6 +99,28 @@ describe('test results', () => {
     renderApp('/labs/ldl')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No results found for this test.')
+  })
+
+  it('filters to tests outside the printed range and by name', async () => {
+    mockApi({ ...loggedIn, 'GET /labs': () => json(200, summaries) })
+    const { router } = renderApp('/labs')
+    const user = userEvent.setup()
+
+    await screen.findByRole('link', { name: 'Fasting glucose' })
+    expect(screen.getByRole('link', { name: 'HbA1c' }).closest('li')).toHaveTextContent('was 5.4 on')
+
+    await user.click(screen.getByRole('button', { name: /Outside range/ }))
+    expect(router.state.location.search).toBe('?filter=outside')
+    expect(screen.queryByRole('link', { name: 'Fasting glucose' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'HbA1c' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /All tests/ }))
+    await user.type(screen.getByRole('searchbox', { name: 'Filter tests by name' }), 'gluc')
+    expect(screen.getByRole('link', { name: 'Fasting glucose' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'HbA1c' })).not.toBeInTheDocument()
+
+    await user.type(screen.getByRole('searchbox', { name: 'Filter tests by name' }), 'zzz')
+    expect(screen.getByText('No tests match.')).toBeInTheDocument()
   })
 
   it('explains an empty list', async () => {

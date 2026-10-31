@@ -11,6 +11,10 @@ export interface LabTestSummary {
   latestFlag: LabFlag | null
   latestObservedOn: string | null
   latestDocumentId: string
+  latestRefText: string | null
+  /** The dated result before the latest one, if any. */
+  previousValueText: string | null
+  previousObservedOn: string | null
 }
 
 /** Every result of one test across the user's reports, oldest first, undated last. */

@@ -47,7 +47,7 @@ function pdf(name: string) {
 const loggedIn = { 'POST /auth/refresh': () => json(200, authResponse()) }
 
 async function openPage() {
-  renderApp('/')
+  renderApp('/documents')
   await screen.findByRole('heading', { name: 'Your documents' })
   return userEvent.setup({ applyAccept: false })
 }
@@ -83,6 +83,27 @@ describe('document list', () => {
     expect(screen.getByText('scan.png')).toBeInTheDocument()
     expect(screen.getByText('Failed')).toBeInTheDocument()
     expect(screen.getByText('2 documents')).toBeInTheDocument()
+  })
+
+  it('filters the timeline by type of document', async () => {
+    mockApi({
+      ...loggedIn,
+      'GET /documents': () =>
+        json(200, page([
+          doc({ id: 'a', title: 'Complete Blood Count', docType: 'LAB_REPORT', docDate: '2025-03-14', status: 'READY' }),
+          doc({ id: 'b', title: 'Lipid profile', docType: 'LAB_REPORT', docDate: '2025-02-14', status: 'READY' }),
+          doc({ id: 'c', title: 'Prescription', docType: 'PRESCRIPTION', docDate: '2025-01-14', status: 'READY' }),
+        ])),
+    })
+    const user = await openPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Prescription 1' }))
+
+    expect(screen.getByText('1 of 3 documents')).toBeInTheDocument()
+    expect(screen.queryByText('Lipid profile')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Prescription 1' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'All' }))
+    expect(screen.getByText('Lipid profile')).toBeInTheDocument()
   })
 
   it('deletes a document after confirmation and refreshes the list', async () => {
@@ -196,7 +217,7 @@ describe('uploading', () => {
     })
 
     try {
-      renderApp('/')
+      renderApp('/documents')
 
       expect(await screen.findByText('Processing')).toBeInTheDocument()
       expect(await screen.findByText('Ready')).toBeInTheDocument()
@@ -220,7 +241,7 @@ describe('uploading', () => {
         ])),
     })
 
-    renderApp('/')
+    renderApp('/documents')
 
     const headings = await screen.findAllByRole('heading', { level: 3 })
     expect(headings.map((h) => h.textContent)).toEqual(['March 2026', 'November 2025', 'Date not found'])
@@ -242,7 +263,7 @@ describe('uploading', () => {
         ]),
     })
     const user = userEvent.setup()
-    renderApp('/')
+    renderApp('/documents')
     expect(await screen.findByText('Lipid profile')).toBeInTheDocument()
 
     const box = screen.getByRole('searchbox', { name: 'Search your documents' })
@@ -250,8 +271,9 @@ describe('uploading', () => {
 
     expect(await screen.findByRole('link', { name: 'Complete Blood Count' })).toHaveAttribute('href', '/documents/doc-9')
     expect(screen.getByText('1 match')).toBeInTheDocument()
-    expect(screen.getByText('…Haemoglobin 12.1 g/dL…')).toBeInTheDocument()
-    expect(screen.getByText('Page 2:')).toBeInTheDocument()
+    const snippet = screen.getByText('Page 2:').parentElement as HTMLElement
+    expect(snippet).toHaveTextContent('Page 2: …Haemoglobin 12.1 g/dL…')
+    expect(within(snippet).getByText('Haemo', { selector: 'mark' })).toBeInTheDocument()
     expect(screen.queryByText('Lipid profile')).not.toBeInTheDocument()
 
     await user.clear(box)
@@ -264,7 +286,7 @@ describe('uploading', () => {
       'GET /search': () => json(200, []),
     })
     const user = userEvent.setup()
-    renderApp('/')
+    renderApp('/documents')
 
     await user.type(await screen.findByRole('searchbox'), 'zzz')
 

@@ -48,7 +48,7 @@ export function SystemStatus() {
   return (
     <section
       aria-labelledby="system-status-heading"
-      className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+      className="rounded-xl border border-slate-200 bg-surface p-5 shadow-sm"
     >
       <h2 id="system-status-heading" className="text-sm font-semibold text-slate-900">
         System status
