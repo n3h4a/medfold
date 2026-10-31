@@ -1,0 +1,13 @@
+# HTTPS entry point. Caddy gets and renews the certificate for MEDFOLD_DOMAIN automatically
+# (ports 80 and 443 must reach this server) and forwards everything to nginx in the frontend.
+{$MEDFOLD_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		# Browsers remember to use HTTPS only, for a year.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	reverse_proxy frontend:80
+}

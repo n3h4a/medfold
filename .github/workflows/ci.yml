@@ -75,3 +75,11 @@ jobs:
       - uses: actions/checkout@v4
       - run: cp .env.example .env
       - run: docker compose build
+      # The production overlay must stay valid too (it refuses to start without real values).
+      - run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+        env:
+          MEDFOLD_DOMAIN: ci.example.com
+          POSTGRES_PASSWORD: ci-only
+          JWT_SECRET: ci-only-ci-only-ci-only-ci-only-ci-only
+          AI_INTERNAL_KEY: ci-only
+      - run: bash -n scripts/backup.sh scripts/restore.sh

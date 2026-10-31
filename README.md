@@ -21,6 +21,8 @@ docker compose up -d --build
 Open http://localhost:3000. Set real values for `POSTGRES_PASSWORD`, `JWT_SECRET` and `AI_INTERNAL_KEY` in `.env` first.
 nginx serves the app and forwards `/api` to the backend; uploads are kept in the `medfold_uploads` volume.
 
+To put it on a server with HTTPS and backups, see [docs/deployment.md](docs/deployment.md).
+
 ## Run locally for development
 
 ```bash

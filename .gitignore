@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Backups made by scripts/backup.sh contain medical data
+backups/
+
 # Local file storage (keep the folder, ignore uploads)
 data/uploads/*
 !data/uploads/.gitkeep

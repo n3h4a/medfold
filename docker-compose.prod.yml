@@ -1,0 +1,44 @@
+# Production overlay: HTTPS in front, nothing else reachable from outside.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# See docs/deployment.md.
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: medfold-caddy
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    environment:
+      MEDFOLD_DOMAIN: ${MEDFOLD_DOMAIN:?Set MEDFOLD_DOMAIN to the public host name, e.g. records.example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates; keep this volume, or Let's Encrypt rate limits can bite on rebuilds.
+      - caddy_data:/data
+      - caddy_config:/config
+
+  frontend:
+    ports: !reset []
+
+  backend:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET (openssl rand -hex 32)}
+      AI_INTERNAL_KEY: ${AI_INTERNAL_KEY:?Set AI_INTERNAL_KEY (openssl rand -hex 32)}
+      # Served over HTTPS only, so the refresh cookie must never travel over plain HTTP.
+      REFRESH_COOKIE_SECURE: "true"
+
+  ai-service:
+    ports: !reset []
+
+  db:
+    ports: !reset []
+
+volumes:
+  caddy_data:
+  caddy_config:
