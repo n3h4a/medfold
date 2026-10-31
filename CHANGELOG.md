@@ -19,14 +19,21 @@ versions follow [Semantic Versioning](https://semver.org/).
 - **Developer experience:** `scripts/start-dev.sh`, `seed-demo-data.sh`, `reset-db.sh`,
   `cleanup.sh`; synthetic demo reports; Postman collection; CI for all services plus an
   end-to-end job on the Docker stack.
-- **Documentation:** architecture, API, database, deployment, ADRs, security, performance,
-  known limitations, roadmap.
+- **Documentation** in numbered sections (project, research, product, design, development,
+  testing, deployment, maintenance, appendix): architecture, components, sequence and state
+  diagrams, API, database with ER diagram, security design, 7 ADRs, use cases with acceptance
+  criteria traced to tests, production checklist, rollback plan, bug log, glossary, licenses.
+- **Quality evidence:** coverage reports in every service (92.6–93.5% of lines) published by CI;
+  a k6 load test (p95 under 12 ms for reads at 20 users); charts drawn from both.
+- **Project files:** code of conduct, security policy, banner, rendered diagrams, `stop-dev.sh`,
+  a pinned `requirements.txt` for the AI service image.
 
 ### Fixed
 - The backend called the AI service over HTTP/2 upgrade, which uvicorn rejects for requests with
   a body; it now uses HTTP/1.1.
 - A renamed, corrected medicine was added a second time on reprocessing.
 - "1 pages" on single-page documents; "a imaging report" in offline summaries.
+- Stopping the development scripts left Vite and the backend JVM running.
 
 ## [0.5.0] - 2026-10-30 - Core MVP
 

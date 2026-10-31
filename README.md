@@ -1,44 +1,58 @@
 <p align="center">
-  <img src="assets/logo/medfold-logo.svg" alt="Medfold" width="280">
-</p>
-
-<p align="center">
-  <strong>Upload once. Find everything. Understand your medical history.</strong>
+  <img src="assets/branding/banner.png" alt="Medfold: upload once, find everything, understand your medical history" width="100%">
 </p>
 
 <p align="center">
   <a href="https://github.com/n3h4a/medfold/actions/workflows/ci.yml"><img src="https://github.com/n3h4a/medfold/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="docs/05-testing/test-plan.md#coverage"><img src="https://img.shields.io/badge/coverage-93%25-brightgreen" alt="Line coverage 93%"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Java-21-orange" alt="Java 21">
   <img src="https://img.shields.io/badge/Spring%20Boot-4-6db33f" alt="Spring Boot 4">
   <img src="https://img.shields.io/badge/React-19-61dafb" alt="React 19">
   <img src="https://img.shields.io/badge/Python-3.12-3776ab" alt="Python 3.12">
+  <img src="https://img.shields.io/badge/PostgreSQL-16-336791" alt="PostgreSQL 16">
 </p>
-
-Medfold is a personal health-records app. You upload lab reports, prescriptions and scans as
-PDFs or phone photos; it reads them with OCR and an LLM, and turns years of scattered paperwork
-into a searchable timeline with test results tracked over time. It describes what your documents
-say and never gives medical advice.
 
 <p align="center">
-  <img src="demo/quick-demo.gif" alt="Demo: logging in, uploading a thyroid report that is read automatically, its results, an HbA1c trend and search" width="820">
+  <img src="demo/quick-demo.gif" alt="Demo: log in, upload a thyroid report that is read automatically, see its results, an HbA1c trend and search" width="820">
   <br><sub>Upload → read automatically → results compared with the printed range → trends → search
-  (<a href="demo/demo-video.mp4">MP4</a>). All data shown is synthetic.</sub>
+  (<a href="demo/demo-video.mp4">video</a>). All data shown is synthetic.</sub>
 </p>
 
-## Highlights
+## The problem
 
-- **Full document pipeline.** Upload → PostgreSQL job queue → PDF text layer or Tesseract OCR →
-  LLM extraction (Claude, or an offline reader) → validated, structured records. Retries,
-  crash recovery and no database transaction held during slow AI calls.
-- **AI with guardrails.** The model fills a schema that has no field for diagnosis or advice;
-  values are copied as printed, and "below/above range" is computed by the backend from the
-  report's own range. Output is validated, wording is safety-checked, and every run is audited.
-- **Privacy by construction.** There is no unscoped database lookup to misuse, and a test reads
-  Spring's route table and attacks every endpoint as another user; a new unclassified endpoint
-  fails the build.
-- **Production-ready.** HTTPS with Caddy, strict CSP, rate-limited login, backups with a tested
-  restore, CI with an end-to-end run of the whole Docker stack, and a Postman collection.
+Medical history arrives as paperwork: PDFs from labs, printed prescriptions, phone photos of
+reports. Every lab prints results differently and nothing lines them up over time. When a doctor
+asks "what was your HbA1c last year?", the answer is buried in a folder.
+
+## The solution
+
+**Medfold** reads those documents for you. Upload a PDF or a photo; it extracts the text (exactly
+from digital PDFs, by OCR from scans), turns it into structured records with an LLM, and puts
+everything on a timeline: each test tracked across reports, every medicine listed, all of it
+searchable. It **describes** what your documents say and never interprets them or gives advice.
+
+## Features
+
+| | |
+|---|---|
+| **Upload** | PDF, JPG, PNG up to 10 MB; drag and drop several at once with progress; type checked from content; duplicates detected |
+| **Automatic reading** | Exact text from digital PDFs; Tesseract OCR for scans and photos; extraction of type, date, doctor, facility, lab results, medicines and plain-language definitions |
+| **Lab results** | Values and ranges exactly as printed, a neutral "below / within / above printed range" comparison, each test charted across reports with unit conversion |
+| **Timeline and search** | Documents by the date of the record; search any word across details, page text, tests and medicines |
+| **Corrections** | Fix anything misread; corrections survive reprocessing |
+| **Your data** | Download everything as JSON; delete the account and every file |
+| **Security** | Rotating refresh tokens in HttpOnly cookies, rate-limited login, strict per-user isolation, HTTPS, CSP |
+
+## Architecture
+
+![Architecture: browser, nginx, Spring Boot API, PostgreSQL, file storage, AI service, Claude API](assets/diagrams/architecture.svg)
+
+Three services: a **React** SPA; a **Spring Boot** API that owns all data and runs a background
+job queue in **PostgreSQL**; and an internal **FastAPI** service that does OCR and LLM extraction.
+Design details: [architecture](docs/03-design/architecture.md) ·
+[components](docs/03-design/component-design.md) · [sequence diagrams](docs/03-design/sequence-diagrams.md) ·
+[database](database/README.md) · [decision records](docs/03-design/adr/README.md).
 
 ## Screenshots
 
@@ -57,68 +71,50 @@ say and never gives medical advice.
 
 </details>
 
-## Features
+## How it works
 
-| | |
-|---|---|
-| **Upload** | PDF, JPG, PNG up to 10 MB; drag and drop several at once with progress; type checked from file content; duplicates detected |
-| **Automatic reading** | Exact text from digital PDFs; OCR for scans and photos; extraction of type, date, doctor, facility, lab results, medicines and term definitions |
-| **Lab results** | Values and ranges exactly as printed, a neutral "below / within / above printed range" comparison, each test charted across reports with unit conversion |
-| **Timeline and search** | Documents by the date of the record; search any word across details, page text, tests and medicines |
-| **Corrections** | Fix anything that was misread; corrections survive reprocessing |
-| **Your data** | Download everything as JSON; delete the account and every file |
-| **Security** | Rotating refresh tokens in HttpOnly cookies, rate-limited login, strict per-user isolation, HTTPS, CSP |
+1. **Upload.** The file's type is checked from its bytes, it's streamed to storage with a SHA-256
+   hash, and the document and a processing job are saved in **one transaction**. The request
+   returns in ~15 ms.
+2. **Queue.** A worker claims due jobs with `FOR UPDATE SKIP LOCKED`, so several workers never
+   collide. Failures are retried with backoff; crashed jobs are recovered.
+3. **Read.** The AI service takes each page's text layer, or renders it and runs Tesseract.
+4. **Extract.** An LLM (Claude, or an offline rule-based reader) fills a strict schema that has
+   **no field for diagnosis or advice**. Output is validated and wording safety-checked; every run
+   is audited.
+5. **Compare.** The backend, not the model, compares each value with the range printed on the
+   same report, and only when both parse with certainty.
+6. **Show.** The browser follows progress and shows the original next to the extracted data.
 
-## Architecture
-
-```mermaid
-flowchart LR
-    browser(["Browser<br/>React SPA"]) -- "HTTPS · /api/v1 · JWT" --> nginx["nginx<br/>static files + /api proxy"]
-    nginx --> api["Spring Boot API<br/>auth · documents · records · search"]
-    api --> db[("PostgreSQL<br/>data · job queue · rate limits")]
-    api --> files[("File storage")]
-    api -- "worker · internal key" --> ai["FastAPI AI service<br/>PDF text · Tesseract OCR · extraction"]
-    ai -.-> llm(["Claude API<br/>(optional)"])
-```
-
-1. An upload is stored and queued in **one transaction**, and the request returns at once.
-2. A worker claims the job (`FOR UPDATE SKIP LOCKED`), sends the file to the AI service for text,
-   then for structured extraction, and saves the results with an audit record.
-3. The browser follows progress and shows the original next to the extracted data.
-
-More: [architecture](docs/architecture/README.md) · [database](database/README.md) ·
-[API](docs/api/README.md) · [decision records](docs/decisions/README.md)
+![OCR and extraction pipeline](assets/diagrams/ai-pipeline.svg)
 
 ## Tech stack
 
 | Layer | Technologies |
 |---|---|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query, React Router, Vitest, Testing Library |
-| Backend | Java 21, Spring Boot 4, Spring Security (JWT resource server), Spring Data JPA, Flyway, JUnit 5, Testcontainers |
+| Backend | Java 21, Spring Boot 4, Spring Security (JWT resource server), Spring Data JPA, Flyway, JUnit 5, Testcontainers, JaCoCo |
 | AI service | Python 3.12, FastAPI, Pydantic, pypdf, pypdfium2, Pillow, Tesseract OCR, Anthropic SDK, pytest |
 | Data | PostgreSQL 16 |
-| Infrastructure | Docker Compose, nginx, Caddy (HTTPS), GitHub Actions, Postman/Newman |
+| Infrastructure | Docker Compose, nginx, Caddy (HTTPS), GitHub Actions, Postman/Newman, k6 |
 
-## Repository layout
+## Folder structure
 
 ```
 medfold/
-├── frontend/        React SPA                         → frontend/README.md
-├── backend/         Spring Boot API                   → backend/README.md
-├── ai-service/      FastAPI OCR and extraction        → ai-service/README.md
-├── database/        ER diagram, schema, migrations    → database/README.md
-├── docs/            architecture, API, deployment, product, decisions (ADRs)
-├── docker/          production overlay, Caddy, Docker notes
-├── scripts/         start-dev, seed-demo-data, reset-db, cleanup, backup, restore
-├── postman/         API collection and environments
-├── tests/           synthetic demo documents, test overview
-├── assets/          logo, screenshots, demo recording
-└── .github/         CI, issue and pull-request templates
+├── frontend/      React SPA                         ├── docs/       00-project … 09-appendix
+├── backend/       Spring Boot API                   ├── scripts/    start-dev, seed-demo-data, backup, …
+├── ai-service/    FastAPI OCR and extraction        ├── tests/      sample documents, load test
+├── database/      ER diagram, schema, migrations    ├── postman/    API collection
+├── docker/        production overlay, Caddy         ├── demo/       GIF, video, screenshots
+└── .github/       CI, issue and PR templates        └── assets/     logo, diagrams, charts
 ```
 
-## Getting started
+Annotated: [folder structure](docs/04-development/folder-structure.md).
 
-**Quickest: everything in Docker.** Needs Docker with Compose.
+## Installation
+
+**Everything in Docker** (needs Docker with Compose):
 
 ```bash
 git clone https://github.com/n3h4a/medfold.git
@@ -130,47 +126,64 @@ API_URL=http://localhost:3000/api/v1 scripts/seed-demo-data.sh
 
 Open http://localhost:3000 and log in as `demo@medfold.local` / `medfold-demo-2026`.
 
-**For development** (hot reload; needs JDK 21, Node 20+, Python 3.12+):
+**For development** with hot reload (JDK 21, Node 20+, Python 3.12+):
 
 ```bash
-scripts/start-dev.sh          # http://localhost:5173
+scripts/start-dev.sh          # http://localhost:5173 · stop with scripts/stop-dev.sh
 scripts/seed-demo-data.sh
 ```
 
-Reading uses the offline reader by default, so no API key is needed. To use Claude, set
-`LLM_PROVIDER=anthropic` and `LLM_API_KEY` in `.env`. All settings:
-[docs/deployment](docs/deployment/README.md#environment-variables). Putting it on a server with
-HTTPS and backups: [production guide](docs/deployment/production.md).
+The offline reader is the default, so no API key is needed. For Claude, set
+`LLM_PROVIDER=anthropic` and `LLM_API_KEY` in `.env`
+([all settings](docs/06-deployment/environment-variables.md)).
 
-## Tests
+## API
 
-| Suite | Tests | Command |
-|---|---|---|
-| Backend: API, privacy isolation, job queue, pipeline (real PostgreSQL) | 222 | `cd backend && ./mvnw test` |
-| AI service: OCR, extraction, safety check | 140 | `cd ai-service && pytest` |
-| Frontend: screens and flows | 95 | `cd frontend && npm test` |
-| End to end: whole Docker stack, 26 API requests | 36 assertions | [postman/](postman/README.md) |
+REST + JSON under `/api/v1`, JWT bearer tokens with a rotating refresh cookie.
 
-[CI](.github/workflows/ci.yml) runs all of them on every push, including real Tesseract OCR and an
-end-to-end run against the built Docker images.
+| | |
+|---|---|
+| `POST /auth/register`, `/auth/login`, `/auth/refresh` | Sessions |
+| `POST /documents` · `GET /documents` · `GET /documents/{id}/results` | Upload, timeline, extracted results |
+| `PATCH /documents/{id}`, `/lab-results/{id}`, `/medications/{id}` | Corrections |
+| `GET /labs/{testKey}` · `GET /search?q=` · `GET /medications` | Trends, search, medicines |
+| `GET /account/export` · `DELETE /account` | Your data |
 
-## Documentation
+All 25 endpoints with errors and examples: [API design](docs/03-design/api-design.md).
+Runnable: [Postman collection](postman/README.md).
 
-[Product](docs/product/README.md) · [Architecture](docs/architecture/README.md) ·
-[API](docs/api/README.md) · [Database](database/README.md) ·
-[Deployment](docs/deployment/README.md) · [Decisions](docs/decisions/README.md) ·
-[Security](SECURITY.md) · [Performance](PERFORMANCE.md) ·
-[Known limitations](KNOWN_LIMITATIONS.md) · [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md)
+## Quality
+
+| | |
+|---|---|
+| **Tests** | 222 backend (real PostgreSQL) · 95 frontend · 140 AI service · end to end on the Docker stack in CI |
+| **Coverage** | 92.6–93.5% of lines per service ([test plan](docs/05-testing/test-plan.md)) |
+| **Privacy** | A test reads the route table and attacks every endpoint as another user |
+| **Performance** | p95 6.5–11 ms for reads at 20 concurrent users ([load test](docs/05-testing/performance-testing.md)) |
+
+<p>
+  <img src="assets/charts/coverage.svg" alt="Line and branch coverage per service" width="49%">
+  <img src="assets/charts/latency.svg" alt="API latency under load" width="49%">
+</p>
+
+## Deployment
+
+`docker/docker-compose.prod.yml` adds Caddy for automatic HTTPS, closes every internal port and
+requires real secrets; `scripts/backup.sh` and `scripts/restore.sh` handle backups.
+Guide: [production deployment](docs/06-deployment/deployment-guide.md) ·
+[checklist](docs/06-deployment/production-checklist.md) · [rollback plan](docs/06-deployment/rollback-plan.md).
 
 ## Roadmap
 
-Next up: password reset and MFA, typo-tolerant search, more OCR languages, sharing a summary with
-a doctor, and object storage. See [ROADMAP.md](ROADMAP.md) and the
-[issues](https://github.com/n3h4a/medfold/issues).
+Next: password reset and two-factor authentication, typo-tolerant search, more OCR languages,
+sharing a summary with a doctor, object storage. See [ROADMAP.md](ROADMAP.md),
+[issues](https://github.com/n3h4a/medfold/issues) and [known limitations](KNOWN_LIMITATIONS.md).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[code of conduct](CODE_OF_CONDUCT.md). Security issues: [SECURITY.md](SECURITY.md). All
+documentation: [docs/](docs/README.md).
 
 ## License
 
