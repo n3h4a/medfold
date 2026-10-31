@@ -69,6 +69,9 @@ Open http://localhost:5173. API calls to `/api` are proxied to the backend on po
 
 ## Tests
 
+GitHub Actions (`.github/workflows/ci.yml`) runs all three suites on every push to `main` and every
+pull request, then builds the Docker images. To run them yourself:
+
 ```bash
 cd backend
 ./mvnw test
