@@ -14,13 +14,14 @@ Where Medfold could go next, in rough priority order. Open items are tracked as
 
 - More OCR languages (Hindi, Spanish, …) with per-account language preference.
 - A cloud OCR provider option for poor photos, through the existing `OcrProvider` interface.
+- Send only low-confidence OCR pages to a vision model; keep the text-first path for the rest ([ADR-010](docs/03-design/adr/ADR-010-ocr-before-ai.md)).
+- Keep the OCR text when extraction fails, so a document is searchable before a retry succeeds.
 - More unit conversions and lab test synonyms.
 - Handling of multi-report PDFs (several lab reports in one file).
 
 ## v1.3: sharing and insight
 
 - Share a read-only summary or selected documents with a doctor via an expiring link.
-- Printable "health summary" PDF before appointments.
 - Medicine timeline: start and end dates across prescriptions.
 - Export to FHIR.
 
