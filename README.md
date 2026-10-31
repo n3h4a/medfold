@@ -4,8 +4,9 @@
 
 <p align="center">
   <a href="https://github.com/n3h4a/medfold/actions/workflows/ci.yml"><img src="https://github.com/n3h4a/medfold/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="docs/05-testing/test-plan.md#coverage"><img src="https://img.shields.io/badge/coverage-93%25-brightgreen" alt="Line coverage 93%"></a>
-  <a href="docs/05-testing/performance-testing.md"><img src="https://img.shields.io/badge/p95%20reads-%3C12%20ms-brightgreen" alt="p95 reads under 12 ms"></a>
+  <a href="docs/05-testing/test-plan.md#coverage"><img src="https://img.shields.io/badge/tests-471%20passing-brightgreen" alt="471 tests passing"></a>
+  <a href="docs/05-testing/test-plan.md#coverage"><img src="https://img.shields.io/badge/line%20coverage-93--97%25-brightgreen" alt="Line coverage 93 to 97 percent"></a>
+  <a href="docs/05-testing/code-audit.md"><img src="https://img.shields.io/badge/security%20checks-22%2F22-brightgreen" alt="22 of 22 security checks pass"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <br>
   <img src="https://img.shields.io/badge/Java-21-orange" alt="Java 21">
@@ -19,48 +20,51 @@
 </p>
 
 <p align="center">
-  <b>Medfold turns a pile of medical paperwork into a personal health record you can search,<br>
-  compare over time and carry anywhere, without ever telling you what your results mean.</b>
+  <b>Medfold turns a folder of paper medical reports into a private record you can search,<br>
+  follow over time and take to any doctor, without ever telling you what your results mean.</b>
 </p>
 
 <p align="center">
-  <img src="demo/quick-demo.gif" alt="Demo: log in, upload a thyroid report that is read automatically, see its results, an HbA1c trend and search" width="820">
-  <br><sub>Upload → read automatically → results compared with the printed range → trends → search
-  (<a href="demo/demo-video.mp4">video</a>). Every document shown is synthetic.</sub>
+  <img src="assets/SYSTEM_OVERVIEW.png" alt="System overview: the problem (a folder of paper), the architecture (React, Spring Boot, FastAPI with OCR and an LLM, PostgreSQL) and what the user gets (timeline, trends, search, visit summary, data control)" width="100%">
+</p>
+
+<p align="center">
+  <img src="demo/quick-demo.gif" alt="Uploading a thyroid report: it is read in the background and its values appear next to the original, with TSH marked above the printed range" width="800">
+  <br><sub>Upload → read in the background → every value next to the original.
+  <b><a href="demo/demo-video.mp4">Watch the full 80-second tour</a></b> (log in → upload → OCR → timeline → search → log out).
+  All data shown is synthetic.</sub>
+</p>
+
+<p align="center">
+  <img src="assets/charts/by-the-numbers.png" alt="By the numbers: 471 automated tests, 93 to 97 percent line coverage, 29 REST endpoints, under 12 ms p95 read latency, 25 of 25 routes attacked for privacy, 10 database tables, 10 decision records, 5 CI jobs per push" width="100%">
+  <br><sub>Every number above is measured, not estimated: <code>scripts/verify-claims.sh</code> re-runs the suites and recounts them.</sub>
 </p>
 
 ---
 
-## At a glance
-
-| | |
-|---|---|
-| **The problem** | Patients carry folders of paper reports between doctors because hospitals rarely give them their own records in digital form ([Razorpay HealthTech problem](#where-the-problem-came-from), itch score **73.5**) |
-| **The idea** | Instead of waiting for hospitals to change, start from the paper and PDFs patients already have and make them digital, searchable and comparable |
-| **What it does** | Reads uploaded reports and photos (OCR + an LLM), files them on a timeline, tracks each test across labs, finds anything by any word |
-| **What it never does** | Diagnose, judge or advise. It describes documents; the original is always one click away |
-| **Built with** | React + TypeScript · Spring Boot (Java 21) · FastAPI (Python) · PostgreSQL · Docker |
-| **Evidence** | 457 automated tests, 93% line coverage, end-to-end CI on the real Docker stack, p95 reads under 12 ms at 20 concurrent users, a privacy test that attacks every endpoint |
-
 ## Contents
 
-1. [The story](#the-story): the problem, why it hurts, how I thought about it, the solution
-2. [See it work](#see-it-work)
-3. [Pros and cons](#pros-and-cons)
-4. [Key decisions and why](#key-decisions-and-why)
-5. [How it works](#how-it-works) (for engineers)
-6. [Quality and evidence](#quality-and-evidence)
-7. [Try it yourself](#try-it-yourself)
-8. [Project structure](#project-structure) · [API](#api) · [Deployment](#deployment)
-9. [Limitations](#limitations) · [Roadmap](#roadmap) · [What I learned](#what-i-learned)
+1. [Why I built this](#why-i-built-this) · [The problem](#the-problem) · [How I thought about it](#how-i-thought-about-it)
+2. [What it does](#what-it-does) · [Try it yourself](#try-it-yourself)
+3. [How it works](#how-it-works) · [Key decisions](#key-decisions-and-why)
+4. [Challenges](#challenges) · [What went wrong](#what-went-wrong) · [Lessons learned](#lessons-learned)
+5. [Quality and evidence](#quality-and-evidence) · [Pros and cons](#pros-and-cons)
+6. [Status](#status-and-roadmap) · [Project structure](#project-structure) · [API](#api) · [Deployment](#deployment)
 
 ---
 
-## The story
+## Why I built this
 
-### Where the problem came from
+I wanted a project that would make me deal with the parts of software that tutorials skip:
+data that has to stay private, inputs that are messy and unreliable, work that is too slow to do
+inside a web request, and an AI model that will sometimes be wrong. A to-do app doesn't teach any
+of that. Medical records teach all of it at once.
 
-The problem comes from a HealthTech problem statement published by **Razorpay**:
+I found the problem in a list of startup problem statements published by **Razorpay**, where it
+had one of the highest scores. And it's familiar: almost every family keeps a folder like this,
+and it's never with you when a doctor asks "what was your last result?"
+
+## The problem
 
 > **Why can't patients access digital copies of medical records?**
 >
@@ -68,190 +72,79 @@ The problem comes from a HealthTech problem statement published by **Razorpay**:
 > paper reports, X-ray films, and prescription histories because most hospitals don't provide
 > patients with digital copies of their own medical data, test results, and imaging studies in
 > portable formats.
+>
+> <sub>Razorpay, HealthTech problem statement</sub>
 
-Razorpay scored it on four dimensions, combined into an **itch score of 73.5**:
+<p align="center"><img src="assets/charts/problem-scores.svg" alt="Severity 9, TAM 10, Whitespace 8.5, Frequency 9, itch score 73.5" width="680"></p>
 
-<p align="center"><img src="assets/charts/problem-scores.svg" alt="Severity 9, TAM 10, Whitespace 8.5, Frequency 9, itch score 73.5" width="720"></p>
-
-In plain words:
-
-| Score | What it measures | Value |
+| Score | In plain words | Value |
 |---|---|---|
-| **Severity** | How much the problem hurts the people who have it | 9 / 10 |
-| **TAM** (total addressable market) | How many people could use a solution | 10 / 10 |
-| **Whitespace** | How little existing products already solve it | 8.5 / 10 |
-| **Frequency** | How often people run into it | 9 / 10 |
-| **Itch score** | Razorpay's combined rating of how much a problem "itches" | **73.5** |
+| Severity | How much it hurts when it happens | 9 / 10 |
+| TAM | How many people have it (total addressable market) | 10 / 10 |
+| Whitespace | How little exists that solves it | 8.5 / 10 |
+| Frequency | How often it happens | 9 / 10 |
+| **Itch score** | Razorpay's combined score of how much a problem "itches" | **73.5** |
 
-High on every axis: almost everyone sees doctors, it happens again and again, it matters when it
-happens, and little exists that fixes it.
+What that looks like in real life:
 
-### Why it hurts
+- **The folder.** Years of reports in a bag, carried to every appointment, or forgotten at home.
+- **Repeated tests.** A new doctor can't see last year's results, so the test is done again.
+- **Every lab speaks differently.** "HbA1c" or "Glycated Haemoglobin", mg/dL or mmol/L, ranges
+  printed five different ways. Results from two labs never line up.
+- **No view over time.** "Is my sugar going up?" means spreading five reports on a table.
+- **Nothing is findable.** "Which medicine was I given in March?" means reading every page.
 
-Think about anyone managing a long-term condition, or a parent looking after an elderly relative:
+## How I thought about it
 
-- 📁 **The folder.** Years of reports in a bag, carried to every appointment, or forgotten at home.
-- 🔁 **Repeated tests.** A new doctor can't see last year's results, so tests are done again.
-- 🧩 **Every lab is different.** Each prints names, units and ranges its own way ("HbA1c",
-  "Glycated Haemoglobin"; "mg/dL", "mmol/L"), so results never line up.
-- 📉 **No view over time.** "Is my sugar going up?" means laying five reports on a table.
-- 🔍 **Nothing is findable.** "Which medicine was I given in March?" means reading every page.
-- 🚑 **When it matters most,** in an emergency or with a new specialist, the history isn't there.
+The problem, as written, is about hospitals: *they* don't hand out digital records. I can't fix
+hospital IT, and patients can't wait for someone else to.
 
-### How I thought about it
+So I flipped the question: **what do patients already have?** The paper and the PDFs. Every
+report they were ever given is already in their hands, just not in a useful form. If those could
+become structured, searchable data, patients would own a digital copy of their records without
+any hospital changing anything.
 
-The problem as stated is about hospitals: *they* don't hand out digital records. Fixing that means
-hospital IT systems, integrations and regulation; a student project can't change that, and patients
-can't wait for it.
+Four rules came out of that, and every later decision follows them:
 
-So I asked a different question: **what do patients already have?** They have the paper and the
-PDFs. Every report, prescription and discharge summary they were ever given is already in their
-hands, just not in a useful form. If those could become structured, searchable, comparable data,
-the patient would own a digital copy of their records **without needing any hospital to change**.
+1. **Start from what people have.** Any PDF or phone photo, from any lab, with no typing.
+2. **Describe, never diagnose.** Software that tells someone their result is "bad" can do real
+   harm. Medfold copies values exactly and only compares them with the range printed on the same
+   report. It never gives advice.
+3. **Always show the source.** AI makes mistakes, so the original sits next to everything read
+   from it, and anything can be corrected.
+4. **The data belongs to the patient.** Private by construction, exportable, deletable.
 
-That reframing led to four principles, which shaped every later decision:
+## What it does
 
-1. **Work from what people have.** Any PDF or phone photo, from any lab, with no typing.
-2. **Describe, never diagnose.** Software that tells someone their result is "bad" can cause real
-   harm. Medfold copies values exactly as printed and only compares them with the range printed on
-   the same report. It never gives advice.
-3. **Always show the source.** AI makes mistakes; the original document sits next to everything
-   extracted from it, and anything can be corrected.
-4. **The data belongs to the patient.** Private by construction, exportable in one click,
-   deletable completely.
-
-### The solution, in plain words
-
-Imagine a careful assistant who takes your folder of medical papers and:
-
-1. **reads** every page, even photos taken on a phone;
-2. **files** each one by the date it was written, not the date you found it;
-3. **writes down** every test result exactly as printed, and notes whether it sits below, within
-   or above the range *that same report* printed;
-4. **lines up** the same test across different labs, even when they use different names or units,
-   so you can see it change over time;
-5. **finds** anything you ask for: a medicine, a doctor, a word on page three;
-6. and **never** tells you what any of it means for your health. That's your doctor's job.
-
-That assistant is Medfold.
-
----
-
-## See it work
-
-| Your documents, by month | One document: original next to what was read |
+| Overview: what changed, what's worth asking about | Visit summary: one page for the doctor |
 |---|---|
-| ![Timeline grouped by month with search](demo/screenshots/timeline.png) | ![Original PDF next to extracted details, test results and terms](demo/screenshots/document-detail.png) |
-| **One test across two years of reports** | **Find anything** |
-| ![HbA1c over two years with the printed range shaded](demo/screenshots/lab-trend.png) | ![Search for a medicine with a snippet](demo/screenshots/search.png) |
+| ![Overview with counts, results outside the printed range and recent documents](demo/screenshots/overview.png) | ![Printable visit summary with latest and previous values](demo/screenshots/visit-summary.png) |
+| **Timeline: by the date of the record, filter by type** | **One document: the original next to what was read** |
+| ![Documents on a timeline with type filters](demo/screenshots/timeline.png) | ![PDF next to extracted details and values](demo/screenshots/document-detail.png) |
+| **One test across two years of reports** | **Search anything, from anywhere (Ctrl/⌘ K)** |
+| ![HbA1c over time with the printed range shaded](demo/screenshots/lab-trend.png) | ![Search palette finding tests and documents](demo/screenshots/search-palette.png) |
 
 <details>
-<summary>More screens: all test results, medicines, phone</summary>
+<summary>More screens: test results, medicines, dark mode, phone, login</summary>
 
-| Every test, latest value | Every medicine | On a phone |
+| Every test, latest and previous value | Every medicine | Dark mode |
 |---|---|---|
-| ![Every test with its latest value](demo/screenshots/test-results.png) | ![Medicines as written](demo/screenshots/medicines.png) | ![Trend on a phone](demo/screenshots/mobile-trend.png) |
+| ![Test results as cards](demo/screenshots/test-results.png) | ![Medicines as written](demo/screenshots/medicines.png) | ![Overview in dark mode](demo/screenshots/dark-mode.png) |
+| **On a phone** | **Trend on a phone** | **Log in** |
+| ![Overview on a phone](demo/screenshots/mobile-overview.png) | ![Trend on a phone](demo/screenshots/mobile-trend.png) | ![Login page](demo/screenshots/login.png) |
 
 </details>
 
-**A typical use:** drop a stack of reports onto the page → watch each one get read in a couple of
-seconds → open a blood count and see haemoglobin marked "below printed range" next to the original
-PDF → click HbA1c to see it across two years (a value a lab printed in another unit is converted
-and labelled) → before an appointment, search "metformin" to find when it was prescribed.
-
-## Pros and cons
-
-An honest look at the approach.
-
-| ✅ Strengths | ⚠️ Trade-offs |
-|---|---|
-| Works with documents people already have, from any lab, with no hospital integration | Only as complete as what the user uploads; nothing arrives automatically |
-| No typing: reports become structured data automatically | OCR can misread blurry photos or handwriting, so values may need correcting |
-| Values copied exactly; the original is always shown alongside | Some results get no comparison when the range is unclear (e.g. sex-specific) |
-| Never interprets or advises, so it can't mislead with a medical judgment | It won't say "this trend is worrying": a deliberate limit |
-| Lines up tests across labs, names and units | Unit conversion covers common tests only; others are listed but not charted |
-| Private by design: strict per-user isolation, export and full deletion | Using Claude sends page text to Anthropic; the offline reader avoids that but reads less |
-| Runs on one server with one command; no cloud services required | Single-server design; scaling out needs object storage (on the roadmap) |
-| Search finds partial words like "metfor" or "hba1" | No typo tolerance or ranking yet |
-
-Full list: [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
-
-## Key decisions and why
-
-Each is written up as an [Architecture Decision Record](docs/03-design/adr/README.md) with the
-alternatives I rejected.
-
-| Decision | Why |
-|---|---|
-| **The AI fills a schema with no field for diagnosis or advice** ([ADR-007](docs/03-design/adr/ADR-007-ai-safety-boundary.md)) | The safest way to stop a model giving medical opinions is to give it nowhere to put one. "Below/above range" is computed by the backend from the report itself |
-| **Read the PDF's own text first, OCR only when needed** ([ADR-004](docs/03-design/adr/ADR-004-ocr.md)) | Digital PDFs are read exactly in ~30 ms; OCR is slower and makes mistakes, so it's used only for scans and photos |
-| **A separate Python service for AI, Spring Boot for the product** ([ADR-005](docs/03-design/adr/ADR-005-service-split.md)) | Python has the best OCR and LLM tools; Java/Spring has the strongest security, transactions and testing for the core. Each does what it's best at |
-| **The job queue is a PostgreSQL table** ([ADR-006](docs/03-design/adr/ADR-006-job-queue.md)) | Saving the upload and its job in one transaction means no lost work and no extra message broker to run |
-| **Short-lived tokens plus a rotating cookie** ([ADR-001](docs/03-design/adr/ADR-001-authentication.md)) | A stolen token is useless within 15 minutes, and a stolen refresh cookie is detected the moment it's reused |
-| **Search inside PostgreSQL, no search engine** ([ADR-003](docs/03-design/adr/ADR-003-search.md)) | Medical data never leaves the database, and one person's records are small enough for fast substring search |
-| **Backend organised by feature** (`document/`, `records/`, `search/`) | Everything about one feature lives together, as Spring recommends, so changes stay local |
-| **Each Dockerfile next to its service** | Every service builds, tests and ships on its own; [docker/](docker/README.md) maps them all |
-
-## How it works
-
-*For engineers.* Three services: a **React** single-page app, a **Spring Boot** API that owns all
-data and runs a background job queue in **PostgreSQL**, and an internal **FastAPI** service for OCR
-and LLM extraction.
-
-![Architecture: browser, nginx, Spring Boot API, PostgreSQL, file storage, AI service, Claude API](assets/diagrams/architecture.svg)
-
-1. **Upload.** The file type is checked from its bytes, the file is streamed to storage with a
-   SHA-256 hash, and the document and a processing job are saved in **one transaction**. The
-   request returns in ~15 ms.
-2. **Queue.** A worker claims jobs with `FOR UPDATE SKIP LOCKED`, so several workers never collide.
-   Failures retry with backoff; jobs from a crashed worker are recovered.
-3. **Read.** The AI service takes each page's text layer, or renders the page and runs Tesseract.
-4. **Extract.** An LLM (Claude, or an offline rule-based reader) fills a strict schema. Output is
-   validated and its wording safety-checked; every run is audited with model and prompt version.
-5. **Compare.** The backend compares each value with the range printed on the same report, only
-   when both parse with certainty.
-6. **Show.** The browser follows progress and shows the original next to the extracted data.
-
-<details>
-<summary>The OCR and extraction pipeline in detail</summary>
-
-![OCR and extraction pipeline](assets/diagrams/ai-pipeline.svg)
-
-</details>
-
-More: [architecture](docs/03-design/architecture.md) · [components and state machines](docs/03-design/component-design.md) ·
-[sequence diagrams](docs/03-design/sequence-diagrams.md) · [database](database/README.md) ·
-[security](docs/03-design/security-design.md)
-
-### Tech stack
-
-| Layer | Technologies |
-|---|---|
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query, React Router, Vitest, Testing Library |
-| Backend | Java 21, Spring Boot 4, Spring Security (JWT), Spring Data JPA, Flyway, JUnit 5, Testcontainers, JaCoCo |
-| AI service | Python 3.12, FastAPI, Pydantic, pypdf, pypdfium2, Pillow, Tesseract OCR, Anthropic SDK, pytest |
-| Data | PostgreSQL 16 |
-| Infrastructure | Docker Compose, nginx, Caddy (HTTPS), GitHub Actions, Postman/Newman, k6 |
-
-## Quality and evidence
-
-| | |
-|---|---|
-| **Tests** | 222 backend (against a real PostgreSQL) · 95 frontend · 140 AI service · end to end on the built Docker stack in CI, including real Tesseract OCR of a photographed-style prescription image |
-| **Coverage** | 92.6–93.5% of lines in every service; reports published by CI ([test plan](docs/05-testing/test-plan.md)) |
-| **Privacy** | A test reads the API's route table and attacks every endpoint as a second user; a new endpoint can't be added without it |
-| **Performance** | 8,295 requests, 0 failed; p95 6.5–11 ms for reads at 20 concurrent users ([load test](docs/05-testing/performance-testing.md)) |
-| **Traceability** | Every use case's acceptance criteria name the tests that verify them ([use cases](docs/02-product/use-cases.md)) |
-| **Honesty** | 11 real bugs logged with root cause and the test that now guards each ([bug log](docs/05-testing/bug-log.md)) |
-
-<p>
-  <img src="assets/charts/coverage.svg" alt="Line and branch coverage per service" width="49%">
-  <img src="assets/charts/latency.svg" alt="API latency under load" width="49%">
-</p>
+Everything Medfold does, how finished each part is and which tests prove it:
+**[FEATURE_MATRIX.md](FEATURE_MATRIX.md)**.
 
 ## Try it yourself
 
-**Everything in Docker** (needs Docker with Compose):
+**In the browser, nothing to install:** on GitHub choose **Code → Codespaces → Create codespace on
+main**. It builds the app, loads a synthetic demo account and opens it; click "Fill in the demo
+account" on the login page.
+
+**On your machine** (Docker with Compose):
 
 ```bash
 git clone https://github.com/n3h4a/medfold.git
@@ -261,8 +154,7 @@ docker compose up -d --build
 API_URL=http://localhost:3000/api/v1 scripts/seed-demo-data.sh
 ```
 
-Open http://localhost:3000 and log in as `demo@medfold.local` / `medfold-demo-2026`. The demo
-reports are synthetic.
+Open http://localhost:3000 and log in as `demo@medfold.local` / `medfold-demo-2026`.
 
 **For development** with hot reload (JDK 21, Node 20+, Python 3.12+):
 
@@ -271,19 +163,171 @@ scripts/start-dev.sh          # http://localhost:5173 · stop with scripts/stop-
 scripts/seed-demo-data.sh
 ```
 
-No API key is needed: the offline reader is the default. For Claude, set `LLM_PROVIDER=anthropic`
-and `LLM_API_KEY` in `.env` ([all settings](docs/06-deployment/environment-variables.md)).
+No API key is needed: an offline reader is the default. To use Claude, set
+`LLM_PROVIDER=anthropic` and `LLM_API_KEY` in `.env` ([all settings](docs/06-deployment/environment-variables.md)).
+
+## How it works
+
+<p align="center">
+  <img src="assets/diagrams/request-flow.gif" alt="Animation: an upload travels from the React app to Spring Boot, is saved with a job in PostgreSQL, claimed by a worker, read by the FastAPI service with OCR, structured by the LLM, compared and saved, and shown back in the app" width="860">
+</p>
+
+Three services and one database:
+
+- **React** single-page app (TypeScript, Vite, Tailwind, TanStack Query).
+- **Spring Boot** API (Java 21). The only public backend: authentication, ownership rules, the job
+  queue, the range comparison. It owns all data.
+- **FastAPI** AI service (Python), internal only: PDF text layers, Tesseract OCR, and an LLM that
+  fills a strict schema.
+- **PostgreSQL** holds the records, the job queue, search and login throttling.
+
+1. **Upload.** The file type is read from the bytes, the file streams to storage with a SHA-256
+   hash, and the document and its processing job are saved in **one transaction**. About 16 ms.
+2. **Queue.** A worker claims jobs with `FOR UPDATE SKIP LOCKED`, so workers never collide. Failures
+   retry with backoff; jobs from a crashed worker are recovered.
+3. **Read.** Digital PDFs are read exactly from their text layer; scans and photos go through OCR.
+4. **Extract.** The LLM turns page text into JSON matching a schema that has no field for
+   diagnosis or advice. The output is validated and every run is audited.
+5. **Compare.** The backend, not the AI, compares each value with the range printed on that report.
+6. **Show.** The timeline, trends, search and visit summary update.
+
+![Architecture: browser, nginx, Spring Boot API, PostgreSQL, file storage, AI service, Claude API](assets/diagrams/architecture.svg)
+
+More: [architecture](docs/03-design/architecture.md) · [components and state machines](docs/03-design/component-design.md) ·
+[sequence diagrams](docs/03-design/sequence-diagrams.md) · [database](database/README.md) ·
+[security](docs/03-design/security-design.md) · [OCR and extraction pipeline](assets/diagrams/ai-pipeline.svg)
+
+## Key decisions and why
+
+Each one is an [Architecture Decision Record](docs/03-design/adr/README.md) with the alternatives
+I turned down and what the choice costs.
+
+| Question | Answer |
+|---|---|
+| **Why Spring Boot?** ([ADR-008](docs/03-design/adr/ADR-008-why-spring-boot.md)) | The public API is where mistakes cost most. Spring gives tested JWT auth, precise transactions and repositories that can't load another user's data. The price: a heavier runtime than Node or Go. |
+| **Why PostgreSQL, and only PostgreSQL?** ([ADR-009](docs/03-design/adr/ADR-009-why-postgresql.md)) | One database also runs the job queue (`SKIP LOCKED`), search and login throttling, so an upload and its job are saved atomically and there's one thing to back up. Search is simple substring matching as a result. |
+| **Why OCR before AI?** ([ADR-010](docs/03-design/adr/ADR-010-ocr-before-ai.md)) | Digital PDFs already contain exact text, so there's nothing for a vision model to improve. The model reads stored text, which makes every value traceable and lets the app run offline. Handwriting reads poorly as a result. |
+| **How do you stop the AI giving medical advice?** ([ADR-007](docs/03-design/adr/ADR-007-ai-safety-boundary.md)) | Give it nowhere to put advice: the schema has no such field, the wording is checked, and "above range" is arithmetic in the backend. |
+| **Why two services?** ([ADR-005](docs/03-design/adr/ADR-005-service-split.md)) | Python has the best OCR and LLM tools, Java the strongest core. The AI service is stateless and can be replaced. |
+| **How do sessions work?** ([ADR-001](docs/03-design/adr/ADR-001-authentication.md)) | 15-minute access tokens plus a rotating HttpOnly cookie. A stolen cookie is detected the moment it's reused. |
+
+## Challenges
+
+The parts that were genuinely hard:
+
+- **Letting an AI read medical data without letting it give opinions.** Prompting "please don't
+  give advice" isn't a guarantee. The fix was structural: a schema with no field for it, a wording
+  check on summaries, and the one evaluative thing (above or below range) computed in Java from
+  the numbers on the page.
+- **Labs that disagree about everything.** The same test is "HbA1c" on one report and "Glycated
+  Haemoglobin" on another, in % here and mmol/mol there, with ranges like `4.0 - 5.6`, `< 200`
+  or `M: 13-17, F: 12-15`. Tests get canonical keys, units are converted only where the conversion
+  is standard, and a range that can't be parsed with certainty gives no comparison rather than a
+  guess.
+- **Privacy that can't be forgotten.** "Remember to check the owner" fails eventually. The
+  repositories don't contain a query that can load someone else's row, and a test reads the API's
+  route table and attacks every endpoint as a second user, so a new endpoint can't be added
+  without being checked.
+- **Slow AI in a fast app.** OCR plus an LLM call can take minutes. Uploads return immediately; a
+  PostgreSQL job queue does the work in the background without holding a transaction open, and
+  survives crashes and AI outages.
+- **Proving it works, not just saying it.** Writing "93% coverage" is easy. Making that number
+  re-measurable with one command, and attacking the running app from outside, took real work.
+
+## What went wrong
+
+Real mistakes, all fixed, each with a test that now guards it ([full bug log](docs/05-testing/bug-log.md)):
+
+- **Every test passed and every document failed.** Java's HTTP client speaks HTTP/2 by default
+  and sends an upgrade header; the Python server rejected every upload with 400. The test doubles
+  didn't care, so CI was green. I only found it by running the real stack. Since then, CI runs the
+  whole Docker stack end to end on every push.
+- **A concurrency bug I'd never have seen in a demo.** With two backend instances, a slow job could
+  be "recovered" by the second instance while the first was still working on it. The first then
+  marked the second's work as done, and the second crashed its worker loop. Found by reading the
+  code during an audit; fixed with a row lock and an ownership check
+  ([code audit](docs/05-testing/code-audit.md)).
+- **I quoted a number measured on the wrong machine.** The README said the AI service had 92.6%
+  coverage. It was measured without Tesseract installed, so 7 tests were skipped; CI actually
+  measures 97.1%. Wrong in the flattering direction or not, it was wrong, and it's why
+  `scripts/verify-claims.sh` exists.
+- **Login protection that reset itself.** The first version counted failed logins in memory, so a
+  restart wiped the count and two servers never shared it. It now lives in PostgreSQL.
+- **A corrected medicine that came back twice.** If you renamed a misread medicine and reprocessed
+  the document, the original reading reappeared next to your correction. Corrections are now
+  matched on the name as first read.
+- **Demo data that duplicated itself.** Regenerating the sample PDFs changed their bytes (an
+  embedded timestamp), so the duplicate check saw new files. The generator is now byte-for-byte
+  deterministic.
+- **The first UI worked but looked like an admin panel.** Version 1.1 redesigned it around the
+  questions people actually ask: what changed, what should I ask my doctor, where is that report.
+
+## Lessons learned
+
+- **Reframing beats brute force.** The problem as written was about hospitals. The problem I could
+  solve was about the paper patients already hold.
+- **"Tests pass" is not "it works".** The worst bug lived in the gap between test doubles and the
+  real services. Run the real thing as early and as often as you can.
+- **Safety is a design property, not a prompt.** Removing the place where a model could write
+  advice works better than asking it nicely.
+- **Make the right thing the only thing.** Privacy holds because unsafe queries don't exist in the
+  code, not because everyone remembers to be careful.
+- **A number in a README is a promise.** If it can't be reproduced with one command, it shouldn't
+  be there.
+- **Write decisions down while they're fresh.** The ADRs record what I rejected and why. Months
+  later that's the part I'd otherwise have forgotten.
+
+## Quality and evidence
+
+| | |
+|---|---|
+| **Tests** | 471: 223 backend (against a real PostgreSQL), 108 frontend, 140 AI service, plus an end-to-end CI job on the built Docker stack that OCRs a photographed prescription |
+| **Coverage** | Lines: backend 93.3%, frontend 94.7%, AI service 97.1% ([test plan](docs/05-testing/test-plan.md)) |
+| **Reproducible** | `scripts/verify-claims.sh` re-runs every suite and recounts every number on this page |
+| **Privacy** | `UserIsolationTest` attacks all 25 routes as a second user; new routes fail the build until they're checked |
+| **Security** | `scripts/security-check.sh` attacks a running stack from outside: 22/22 pass; no known vulnerable dependencies ([code audit](docs/05-testing/code-audit.md)) |
+| **Performance** | k6, 20 concurrent users: 8,295 requests, 0 failed, p95 6.5–11 ms for reads ([load test](docs/05-testing/performance-testing.md)) |
+| **Traceability** | Every use case's acceptance criteria name the tests that verify them ([use cases](docs/02-product/use-cases.md)) |
+
+<p>
+  <img src="assets/charts/coverage.svg" alt="Line and branch coverage per service" width="49%">
+  <img src="assets/charts/latency.svg" alt="API latency under load" width="49%">
+</p>
+
+## Pros and cons
+
+| Strengths | Trade-offs |
+|---|---|
+| Works with documents people already have, from any lab, with no hospital integration | Only as complete as what the user uploads; nothing arrives automatically |
+| No typing: reports become structured data | OCR can misread blurry photos or handwriting, so values may need correcting |
+| Values copied exactly; the original always alongside | Results with unclear ranges (e.g. sex-specific) get no comparison |
+| Never interprets or advises, so it can't mislead | It won't say "this trend is worrying": a deliberate limit |
+| Lines up tests across labs, names and units | Unit conversion covers common tests only |
+| Private by design: strict isolation, export, full deletion | Using Claude sends page text to Anthropic; the offline reader keeps it local but reads less |
+| One server, one command, no cloud services required | Scaling out needs object storage (on the roadmap) |
+
+All limitations: [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
+
+## Status and roadmap
+
+**v1.1.0**: feature-complete for one person's records, CI green. Done, in progress, remaining
+and known issues: **[PROJECT_STATUS.md](PROJECT_STATUS.md)**.
+
+Next: password reset and two-factor login, typo-tolerant search, more OCR languages, a vision
+model only for hard-to-read pages, sharing a read-only link with a doctor, FHIR export
+([ROADMAP.md](ROADMAP.md), [issues](https://github.com/n3h4a/medfold/issues)).
 
 ## Project structure
 
 ```
 medfold/
 ├── frontend/      React SPA                         ├── docs/       00-project … 09-appendix
-├── backend/       Spring Boot API                   ├── scripts/    start-dev, seed-demo-data, backup, …
+├── backend/       Spring Boot API                   ├── scripts/    start-dev, seed, verify-claims, security-check, backup
 ├── ai-service/    FastAPI OCR and extraction        ├── tests/      sample documents, load test
 ├── database/      ER diagram, schema, migrations    ├── postman/    API collection
-├── docker/        production overlay, Caddy         ├── demo/       GIF, video, screenshots
-└── .github/       CI, issue and PR templates        └── assets/     logo, diagrams, charts
+├── docker/        production overlay, Caddy         ├── demo/       video, GIF, screenshots, narration
+├── .devcontainer/ Codespaces demo                   ├── assets/     overview, diagrams, charts (all generated)
+└── .github/       CI, issue and PR templates
 ```
 
 Annotated: [folder structure](docs/04-development/folder-structure.md). All documentation:
@@ -295,10 +339,10 @@ REST + JSON under `/api/v1`, with short-lived JWTs and a rotating refresh cookie
 
 | | |
 |---|---|
-| `POST /auth/register`, `/auth/login`, `/auth/refresh` | Sessions |
+| `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout` | Sessions |
 | `POST /documents` · `GET /documents` · `GET /documents/{id}/results` | Upload, timeline, extracted results |
 | `PATCH /documents/{id}`, `/lab-results/{id}`, `/medications/{id}` | Corrections |
-| `GET /labs/{testKey}` · `GET /search?q=` · `GET /medications` | Trends, search, medicines |
+| `GET /labs` · `GET /labs/{testKey}` · `GET /search?q=` · `GET /medications` | Tests, trends, search, medicines |
 | `GET /account/export` · `DELETE /account` | Take your data, or leave |
 
 All 25 endpoints with errors and examples: [API design](docs/03-design/api-design.md). Runnable:
@@ -308,37 +352,9 @@ All 25 endpoints with errors and examples: [API design](docs/03-design/api-desig
 
 `docker/docker-compose.prod.yml` adds Caddy for automatic HTTPS, closes every internal port and
 refuses to start without real secrets; `scripts/backup.sh` and `scripts/restore.sh` handle
-backups. Guide: [production deployment](docs/06-deployment/deployment-guide.md) ·
+backups. Guide: [production deployment](docs/06-deployment/deployment-guide.md) (including a
+[public demo](docs/06-deployment/deployment-guide.md#a-public-demo)) ·
 [checklist](docs/06-deployment/production-checklist.md) · [rollback plan](docs/06-deployment/rollback-plan.md).
-
-## Limitations
-
-Medfold is a v1.0 built for one person's records. It doesn't connect to hospitals, reads English
-best, can misread poor photos (the original is always shown, and values can be corrected), and runs
-on a single server. Using Claude sends page text to Anthropic; the offline reader keeps everything
-local. Details: [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
-
-## Roadmap
-
-Next: password reset and two-factor login, typo-tolerant search, more OCR languages, sharing a
-read-only summary with a doctor, FHIR export, and object storage. See [ROADMAP.md](ROADMAP.md) and
-the [issues](https://github.com/n3h4a/medfold/issues).
-
-## What I learned
-
-- **Reframing beats brute force.** The stated problem was about hospitals; the solvable problem was
-  about the paper patients already hold.
-- **Safety is a design property, not a prompt.** Removing the place a model could write advice
-  works better than asking it nicely not to.
-- **Run the real thing.** The worst bug (every document failing against the real AI service while
-  all tests passed) only appeared when the whole system ran together. That's why CI now runs the
-  full Docker stack end to end.
-- **Make the right thing the only thing.** Privacy holds because unsafe database queries don't
-  exist in the code, and a test fails the build if a new endpoint isn't checked.
-- **Write decisions down.** The ADRs record the alternatives as well as the choices, which made
-  later changes much easier to reason about.
-
-More in the [implementation notes](docs/04-development/implementation-notes.md).
 
 ## Contributing
 

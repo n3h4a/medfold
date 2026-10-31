@@ -3,6 +3,33 @@
 All notable changes to Medfold. Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-31 - Polish and proof
+
+### Added
+- **Overview** home page: counts, latest results outside the printed range with sparklines,
+  recent documents, the latest prescription, and onboarding for new accounts. The document
+  timeline moves to `/documents`.
+- **Visit summary** (`/summary`): one printable page for an appointment with every test's latest
+  value, printed range, comparison and previous value, the latest prescription and the sources.
+- **Search palette** (Ctrl/⌘ K) for pages, tests and document text from anywhere.
+- **Dark mode**, a sidebar layout, icons, a timeline rail, type filters, highlighted search
+  matches, skeleton loading states and a redesigned login page.
+- Lab summaries include the printed range and the previous value (`latestRefText`,
+  `previousValueText`, `previousObservedOn`).
+- `scripts/verify-claims.sh` re-measures every number the README quotes;
+  `scripts/security-check.sh` attacks a running stack from outside (22 checks).
+- Code audit report, ADR-008 (why Spring Boot), ADR-009 (why PostgreSQL), ADR-010 (why OCR before
+  AI), `FEATURE_MATRIX.md`, `PROJECT_STATUS.md`.
+- A recorded, captioned demo video with a narration script; a system overview image, a numbers
+  card and an animated request flow, all generated from source.
+- A GitHub Codespaces setup and settings for a public demo (`VITE_DEMO_EMAIL`, `VITE_DEMO_PASSWORD`).
+
+### Fixed
+- With several backend instances, a job running longer than `stale-after` could be finished by
+  two workers at once, and the later one aborted its whole worker cycle. Jobs are now finished
+  only by the worker that holds the current attempt; `stale-after` is 15 minutes.
+- The AI service coverage was quoted as 92.6%, measured without Tesseract; it is 97.1%.
+
 ## [1.0.0] - 2026-10-31 - Demo ready
 
 ### Added
@@ -57,6 +84,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Authentication: register and login with BCrypt, 15-minute JWT access tokens, rotating refresh
   tokens in an HttpOnly cookie with reuse detection, protected routes and automatic refresh.
 
+[1.1.0]: https://github.com/n3h4a/medfold/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/n3h4a/medfold/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/n3h4a/medfold/compare/v0.1.0...v0.5.0
 [0.1.0]: https://github.com/n3h4a/medfold/releases/tag/v0.1.0
