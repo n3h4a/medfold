@@ -5,7 +5,10 @@ import java.util.UUID;
 
 import com.medfold.records.LabFlag;
 
-/** One test the user has results for, with its most recent value. */
+/**
+ * One test the user has results for, with its most recent value and the dated value before it
+ * (null when there is none), so a change can be shown without loading the whole trend.
+ */
 public record LabTestSummary(
         String testKey,
         String testName,
@@ -14,5 +17,8 @@ public record LabTestSummary(
         String latestValueText,
         LabFlag latestFlag,
         LocalDate latestObservedOn,
-        UUID latestDocumentId) {
+        UUID latestDocumentId,
+        String latestRefText,
+        String previousValueText,
+        LocalDate previousObservedOn) {
 }

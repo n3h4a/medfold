@@ -63,9 +63,15 @@ public class RecordsService {
         }
         return byTest.entrySet().stream()
                 .map(e -> {
-                    LabResult latest = e.getValue().getLast();
-                    return new LabTestSummary(e.getKey(), latest.getTestName(), latest.getUnit(), e.getValue().size(),
-                            latest.getValueText(), latest.getFlag(), latest.getObservedOn(), latest.getDocumentId());
+                    List<LabResult> results = e.getValue();
+                    LabResult latest = results.getLast();
+                    // Undated results sort first, so a dated latest value is preceded by the dated one before it.
+                    LabResult previous = results.size() > 1 && results.get(results.size() - 2).getObservedOn() != null
+                            ? results.get(results.size() - 2) : null;
+                    return new LabTestSummary(e.getKey(), latest.getTestName(), latest.getUnit(), results.size(),
+                            latest.getValueText(), latest.getFlag(), latest.getObservedOn(), latest.getDocumentId(),
+                            latest.getRefText(), previous == null ? null : previous.getValueText(),
+                            previous == null ? null : previous.getObservedOn());
                 })
                 .sorted(Comparator.comparing(LabTestSummary::testName, String.CASE_INSENSITIVE_ORDER))
                 .toList();

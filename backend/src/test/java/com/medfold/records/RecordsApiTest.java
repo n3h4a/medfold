@@ -180,7 +180,11 @@ class RecordsApiTest {
                 .andExpect(jsonPath("$[1].latestValueText").value("6.1"))
                 .andExpect(jsonPath("$[1].latestFlag").value("HIGH"))
                 .andExpect(jsonPath("$[1].latestObservedOn").value("2026-06-01"))
-                .andExpect(jsonPath("$[1].latestDocumentId").value(newer.toString()));
+                .andExpect(jsonPath("$[1].latestDocumentId").value(newer.toString()))
+                .andExpect(jsonPath("$[1].latestRefText").value("4.0 - 5.6"))
+                .andExpect(jsonPath("$[1].previousValueText").value("5.4"))
+                .andExpect(jsonPath("$[1].previousObservedOn").value("2025-06-01"))
+                .andExpect(jsonPath("$[0].previousValueText").doesNotExist());
 
         call(get("/api/v1/labs/hba1c"))
                 .andExpect(status().isOk())
