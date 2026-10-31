@@ -45,6 +45,9 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Local development (scripts/start-dev.sh)
+.dev/
+
 # Logs
 *.log
 logs/
