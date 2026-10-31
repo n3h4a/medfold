@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="72" viewBox="0 0 320 72" role="img" aria-label="Medfold">
+  <title>Medfold</title>
+  <g transform="translate(4 4)">
+    <path d="M14 6h26l12 12v36a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#1f726b"/>
+    <path d="M40 6v8a4 4 0 0 0 4 4h8z" fill="#7fc4bd"/>
+    <path d="M16 38h8l4-9 6 17 4-8h10" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="76" y="49" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="38" font-weight="700" fill="#195b56">Medfold</text>
+</svg>
