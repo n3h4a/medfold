@@ -2,7 +2,7 @@
 Draws the charts in docs/05-testing from real measurements:
 
 - latency.svg  from tests/performance/results.json (written by the k6 load test)
-- coverage.svg from coverage.json next to this script (numbers from the three coverage reports)
+- coverage.svg from stats.json next to this script (written by scripts/verify-claims.sh)
 - problem-scores.svg from problem-scores.json (the scores of the Razorpay problem statement)
 
     python assets/charts/make_charts.py
@@ -66,9 +66,10 @@ def latency():
 
 
 def coverage():
-    c = json.loads((HERE / "coverage.json").read_text())
-    rows = [(s["service"], [s["lines"], s["branches"]]) for s in c["services"]]
-    bar_chart("Test coverage", f"Measured {c['measured']} from the JaCoCo, Vitest (V8) and pytest-cov reports",
+    c = json.loads((HERE / "stats.json").read_text())
+    names = {"backend": "Backend", "frontend": "Frontend", "aiService": "AI service"}
+    rows = [(names[k], [s["lines"], s["branches"]]) for k, s in c["tests"].items()]
+    bar_chart("Test coverage", f"Measured {c['measuredOn']} from the JaCoCo, Vitest (V8) and pytest-cov reports",
               rows, [("Lines", DARK), ("Branches", LIGHT)], "%", 100, HERE / "coverage.svg", 25, lambda v: f"{v:.1f}" if v % 1 else f"{v:.0f}")
 
 

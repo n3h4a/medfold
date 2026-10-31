@@ -1,0 +1,32 @@
+{
+  "counts": {
+    "backendEndpoints": 25,
+    "aiEndpoints": 4,
+    "databaseTables": 10,
+    "migrations": 7,
+    "adrs": 10
+  },
+  "tests": {
+    "backend": {
+      "tests": 223,
+      "failed": 0,
+      "lines": 93.3,
+      "branches": 82.6
+    },
+    "frontend": {
+      "tests": 108,
+      "failed": 0,
+      "lines": 94.7,
+      "branches": 82.5
+    },
+    "aiService": {
+      "tests": 140,
+      "skipped": 0,
+      "failed": 0,
+      "lines": 97.1,
+      "branches": 95.2
+    }
+  },
+  "testsTotal": 471,
+  "measuredOn": "2026-10-31"
+}

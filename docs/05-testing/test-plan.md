@@ -23,11 +23,24 @@ tests, the language model in AI service tests).
 
 | Service | Tests | Lines | Branches | Report |
 |---|---|---|---|---|
-| Backend | 222 | 93.3% | 82.5% | `backend/target/site/jacoco/index.html` |
-| Frontend | 95 | 93.5% | 82.3% | `frontend/coverage/index.html` |
-| AI service | 140 (7 need Tesseract) | 92.6% | 89.4% | `ai-service/htmlcov/index.html` |
+| Backend | 223 | 93.3% | 82.6% | `backend/target/site/jacoco/index.html` |
+| Frontend | 108 | 94.7% | 82.5% | `frontend/coverage/index.html` |
+| AI service | 140 (7 need Tesseract) | 97.1% | 95.2% | `ai-service/htmlcov/index.html` |
+| **Total** | **471** | | | |
 
-Measured 2026-10-31. CI publishes the three HTML reports as artifacts on every run.
+Measured 2026-10-31 with Tesseract installed, as in CI. Without Tesseract the 7 OCR tests are
+skipped and AI service line coverage drops to about 92%; an earlier version of this table quoted
+that lower figure by mistake. CI publishes the three HTML reports as artifacts on every run.
+
+**Reproduce every number** (tests, coverage, endpoint and table counts) with one command; it
+also rewrites [`assets/charts/stats.json`](../../assets/charts/stats.json), which the charts and
+the README cards are drawn from:
+
+```bash
+scripts/verify-claims.sh
+```
+
+Or each suite on its own:
 
 ```bash
 (cd backend && ./mvnw test)                    # Docker needed (Testcontainers)
