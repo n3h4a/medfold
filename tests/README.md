@@ -32,4 +32,5 @@ python tests/test-data/generate_samples.py   # needs reportlab and Pillow (AI se
 | `sample-pdfs/complete-blood-count-2026-03-02.pdf` | Blood count with values below the printed range, `7,400` style numbers |
 | `sample-pdfs/prescription-2026-05-20.pdf` | Medicines with dose, frequency and duration |
 | `sample-pdfs/chest-x-ray-2025-08-11.pdf` | Imaging report (no lab table) |
+| `sample-pdfs/live-upload/thyroid-profile-2026-09-12.pdf` | Not seeded: uploaded live in the demo video, so processing can be shown; TSH above the printed range |
 | `sample-images/prescription-photo-2026-07-09.png` | Slightly rotated photo of a prescription: the OCR path |

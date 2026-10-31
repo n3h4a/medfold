@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Medfold video card</title>
+<!-- Title and end cards of the demo video; ?end selects the end card. Rendered by record-demo.cjs. -->
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 800px; display: grid; place-items: center; color: #fff; overflow: hidden;
+         font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif; background: radial-gradient(circle at 20% 15%, #34a399 0%, #1f726b 45%, #12403c 100%); }
+  .wrap { text-align: center; }
+  .logo { display: inline-flex; align-items: center; gap: 16px; font-size: 54px; font-weight: 700; letter-spacing: -0.02em; }
+  h1 { font-size: 40px; font-weight: 650; margin-top: 26px; letter-spacing: -0.01em; }
+  p { font-size: 22px; opacity: 0.85; margin-top: 14px; }
+  .chips { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 34px; max-width: 900px; }
+  .chip { background: rgb(255 255 255 / 0.14); border: 1px solid rgb(255 255 255 / 0.2); border-radius: 999px; padding: 8px 16px; font-size: 17px; font-weight: 600; }
+  .url { margin-top: 40px; font-size: 26px; font-weight: 700; background: #fff; color: #195b56; display: inline-block; padding: 12px 26px; border-radius: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="card"></div>
+<script>
+  const logo = `<svg viewBox="0 0 32 32" width="64" height="64"><rect width="32" height="32" rx="8" fill="#fff" opacity="0.18"/>
+    <path d="M9 7.5h9.5L23 12v12.5H9z" fill="#fff"/><path d="M18.5 7.5V12H23" fill="#d5ecea"/>
+    <path d="M11 18.5h2.6l1.5-3.2 2.2 5.6 1.5-2.4H21" fill="none" stroke="#1f726b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  const end = location.search.includes('end')
+  document.getElementById('card').innerHTML = end
+    ? `<div class="logo">${logo}Medfold</div>
+       <h1>From a folder of paper to one searchable record</h1>
+       <div class="chips"><span class="chip">Spring Boot · Java 21</span><span class="chip">React · TypeScript</span><span class="chip">FastAPI · OCR · LLM</span><span class="chip">PostgreSQL</span><span class="chip">471 automated tests</span><span class="chip">Docker · CI/CD</span></div>
+       <div class="url">github.com/n3h4a/medfold</div>`
+    : `<div class="logo">${logo}Medfold</div>
+       <h1>Your medical history, in one place</h1>
+       <p>Upload a report. Medfold reads it, organises it, and tracks every result over time.</p>
+       <p style="margin-top:36px;font-size:18px;opacity:.7">A guided tour in under two minutes · synthetic demo data</p>`
+</script>
+</body>
+</html>

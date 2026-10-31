@@ -17,6 +17,8 @@ from reportlab.pdfgen import canvas
 TESTS = Path(__file__).resolve().parent.parent
 REPORTS = TESTS / "sample-pdfs"
 IMAGES = TESTS / "sample-images"
+# Not seeded: uploaded live in the demo video (demo/record-demo.cjs) to show processing.
+LIVE = REPORTS / "live-upload"
 
 LAB = "Medfold Demo Diagnostics Laboratory"
 CLINIC = "Medfold Demo Clinic"
@@ -115,6 +117,20 @@ def imaging() -> None:
     ])
 
 
+def thyroid() -> None:
+    _page(LIVE / "thyroid-profile-2026-09-12.pdf", LAB, [
+        (PATIENT,),
+        ("Sample collected: 2026-09-12    Report date: 2026-09-12",),
+        ("Referred by: Dr. Meera Iyer",),
+        ("",),
+        ("Thyroid Profile",),
+        ("Test", "Result", "Unit", "Reference range"),
+        ("TSH", "5.1", "uIU/mL", "0.4 - 4.0"),
+        ("Total T3", "1.2", "ng/mL", "0.8 - 2.0"),
+        ("Total T4", "7.9", "ug/dL", "5.1 - 14.1"),
+    ])
+
+
 def photo() -> None:
     """A phone-photo-like image of a prescription, for the OCR path (needs Tesseract)."""
     image = Image.new("RGB", (1400, 900), (250, 248, 240))
@@ -139,10 +155,12 @@ def photo() -> None:
 if __name__ == "__main__":
     REPORTS.mkdir(exist_ok=True)
     IMAGES.mkdir(exist_ok=True)
+    LIVE.mkdir(exist_ok=True)
     for day, values in METABOLIC:
         metabolic(day, values)
     blood_count()
     prescription()
     imaging()
+    thyroid()
     photo()
     print(f"Wrote {len(list(REPORTS.glob('*.pdf')))} PDFs to {REPORTS} and 1 image to {IMAGES}")
