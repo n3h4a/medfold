@@ -88,7 +88,7 @@ function DetailsPanel({ document }: { document: MedicalDocument }) {
           <Field label="Uploaded" value={formatDate(document.createdAt)} />
           <Field
             label="File"
-            value={[formatBytes(document.sizeBytes), document.pageCount ? `${document.pageCount} pages` : null]
+            value={[formatBytes(document.sizeBytes), document.pageCount ? `${document.pageCount} ${document.pageCount === 1 ? "page" : "pages"}` : null]
               .filter(Boolean)
               .join(' · ')}
           />

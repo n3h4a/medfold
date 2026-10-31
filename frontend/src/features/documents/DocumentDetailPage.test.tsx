@@ -397,4 +397,17 @@ describe('document detail page', () => {
     await waitFor(() => expect(screen.queryByText('Ferrous sulfate 200 mg')).not.toBeInTheDocument())
     expect(removed).toBe(true)
   })
+
+  it('says "1 page" for a single page', async () => {
+    mockApi({
+      ...loggedIn,
+      'GET /documents/doc-1': () => json(200, doc({ pageCount: 1 })),
+      'GET /documents/doc-1/file': fileResponse('application/pdf'),
+      'GET /documents/doc-1/results': () => json(200, noResults),
+    })
+
+    renderApp('/documents/doc-1')
+
+    expect(await screen.findByText('2 KB · 1 page')).toBeInTheDocument()
+  })
 })
