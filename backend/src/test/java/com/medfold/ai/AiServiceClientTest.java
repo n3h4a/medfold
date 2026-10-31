@@ -49,7 +49,7 @@ class AiServiceClientTest {
                      "someFutureField":true}}
             """;
 
-    private record Captured(String method, String path, String key, String contentType, String body) {
+    private record Captured(String method, String path, String key, String contentType, String body, String upgrade) {
     }
 
     private interface Handler {
@@ -68,7 +68,8 @@ class AiServiceClientTest {
             byte[] body = exchange.getRequestBody().readAllBytes();
             captured.set(new Captured(exchange.getRequestMethod(), exchange.getRequestURI().getPath(),
                     exchange.getRequestHeaders().getFirst("X-Internal-Api-Key"),
-                    exchange.getRequestHeaders().getFirst("Content-Type"), new String(body, StandardCharsets.UTF_8)));
+                    exchange.getRequestHeaders().getFirst("Content-Type"), new String(body, StandardCharsets.UTF_8),
+                    exchange.getRequestHeaders().getFirst("Upgrade")));
             try {
                 handler.handle(exchange);
             } finally {
@@ -124,6 +125,8 @@ class AiServiceClientTest {
         assertThat(request.path()).isEqualTo("/v1/ocr");
         assertThat(request.key()).isEqualTo(KEY);
         assertThat(request.contentType()).startsWith("multipart/form-data");
+        // uvicorn answers 400 to an HTTP/2 upgrade on a request with a body.
+        assertThat(request.upgrade()).isNull();
         assertThat(request.body()).contains("name=\"file\"", "filename=\"report.pdf\"", "Content-Type: application/pdf",
                 "%PDF-1.4 test");
 
@@ -150,6 +153,7 @@ class AiServiceClientTest {
         assertThat(request.path()).isEqualTo("/v1/extract");
         assertThat(request.key()).isEqualTo(KEY);
         assertThat(request.contentType()).startsWith("application/json");
+        assertThat(request.upgrade()).isNull();
         // The service rejects unknown fields, so the request must have exactly these.
         assertThat(jsonMapper.readTree(request.body()).propertyNames()).containsExactlyInAnyOrder("pages", "docTypeHint");
         assertThat(request.body()).contains("\"pageNumber\":1", "\"text\":\"Haemoglobin 13.5\"",

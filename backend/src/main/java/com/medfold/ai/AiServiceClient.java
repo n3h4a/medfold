@@ -77,6 +77,9 @@ public class AiServiceClient {
 
     public AiServiceClient(AiServiceProperties properties, JsonMapper jsonMapper) {
         HttpClient httpClient = HttpClient.newBuilder()
+                // HTTP/1.1 only: the default (HTTP/2) sends an "Upgrade: h2c" request over plain HTTP,
+                // which uvicorn rejects with 400 for every request that has a body.
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(properties.connectTimeout())
                 // The AI service is reached directly (internal network), never through an outbound proxy.
                 .proxy(HttpClient.Builder.NO_PROXY)
@@ -88,6 +91,7 @@ public class AiServiceClient {
                 .requestFactory(requestFactory)
                 .build();
         JdkClientHttpRequestFactory pingFactory = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(PING_TIMEOUT)
                 .proxy(HttpClient.Builder.NO_PROXY)
                 .build());
