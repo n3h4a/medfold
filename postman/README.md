@@ -22,5 +22,5 @@ npx newman run postman/medfold.postman_collection.json \
 ```
 
 The refresh token is an HttpOnly cookie; Postman and Newman keep it in their cookie jar, so
-*Refresh session* and *Log out* work without extra setup. See [docs/api](../docs/api/README.md)
+*Refresh session* and *Log out* work without extra setup. See [API design](../docs/03-design/api-design.md)
 for the full API reference.

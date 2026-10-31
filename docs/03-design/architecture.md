@@ -13,7 +13,7 @@ PostgreSQL holds all data; uploaded files live on a volume behind a storage inte
 
 ## Principles
 
-These shaped most decisions (see [decisions](../decisions/README.md)):
+These shaped most decisions (see [decisions](adr/README.md)):
 
 1. **Privacy by construction.** Every query names the owner; there is no unscoped lookup to misuse.
    Another user's document and a missing one return the same 404.
@@ -27,113 +27,20 @@ These shaped most decisions (see [decisions](../decisions/README.md)):
 
 ## 1. System context
 
-```mermaid
-flowchart LR
-    user(["Person managing<br/>their records"])
-    subgraph medfold["Medfold"]
-        spa["React SPA"]
-        api["Spring Boot API"]
-        ai["FastAPI AI service"]
-        db[("PostgreSQL")]
-        files[("File storage")]
-    end
-    llm(["Anthropic API<br/>(optional)"])
-    user -- HTTPS --> spa
-    spa -- "/api/v1 (JSON, Bearer JWT)" --> api
-    api --> db
-    api --> files
-    api -- "internal key" --> ai
-    ai -- "LLM_PROVIDER=anthropic" --> llm
-```
+![System context: the SPA, API, AI service, database, file storage and the optional Anthropic API](../../assets/diagrams/system-context.svg)
 
 ## 2. Components
 
 Every arrow below exists and is tested.
 
-```mermaid
-flowchart LR
-    subgraph Browser
-        UI["React SPA<br/>Documents timeline + search · Upload queue<br/>Detail + results + editing · Test trends · Medicines"]
-    end
+![Components and how they connect](../../assets/diagrams/components.svg)
 
-    subgraph Backend["Spring Boot API :8080 (only public backend)"]
-        SEC["Security filter chain<br/>JWT on every request"]
-        AUTH["auth/"]
-        DOCS["document/<br/>upload · list · get · status · file · delete<br/>reprocess · edit details"]
-        RECORDS["records/<br/>results · labs · trends · medicines<br/>edit/remove rows · LabFlagCalculator"]
-        SEARCH["search/<br/>every word, owner-scoped SQL"]
-        ACCOUNT["account/<br/>export · delete"]
-        STORE["storage/<br/>StorageService"]
-        WORKER["processing/<br/>job queue + worker"]
-        AICLIENT["ai/<br/>AiServiceClient"]
-    end
-
-    subgraph AI["FastAPI AI service :8000 (internal only)"]
-        OCR["/v1/ocr<br/>text layer → Tesseract"]
-        EXTRACT["/v1/extract<br/>LLM provider (mock · Claude)<br/>validation + safety check"]
-        SCHEMA["ExtractionResult schema<br/>+ prompt extraction-v1"]
-    end
-
-    DB[("PostgreSQL 16<br/>users · documents · pages · lab_results<br/>medications · terms · jobs · extraction_runs")]
-    FILES[("data/uploads/{userId}/{uuid}.ext")]
-    LLM(["LLM API"])
-
-    UI -- "Bearer token<br/>XHR upload with progress<br/>blob download for viewer" --> SEC
-    SEC --> AUTH --> DB
-    SEC --> DOCS --> DB
-    SEC --> RECORDS --> DB
-    SEC --> SEARCH --> DB
-    SEC --> ACCOUNT --> DB
-    DOCS --> STORE --> FILES
-    DOCS -- "enqueue (same transaction)" --> DB
-    WORKER -- "claim: FOR UPDATE SKIP LOCKED" --> DB
-    WORKER --> STORE
-    WORKER --> AICLIENT
-    AICLIENT -- "X-Internal-Api-Key" --> OCR
-    AICLIENT --> EXTRACT
-    EXTRACT --> SCHEMA
-    EXTRACT --> LLM
-```
-
-| Backend package | Responsibility |
-|---|---|
-| `auth` | Register, login, rotating refresh tokens, JWT validation, login throttling |
-| `document` | Upload (type detection, duplicates), timeline, file streaming, corrections, reprocessing |
-| `storage` | `StorageService` interface; local filesystem implementation (`{userId}/{uuid}.ext`) |
-| `processing` | Job queue (`FOR UPDATE SKIP LOCKED`), worker, retries, result writer |
-| `ai` | HTTP client for the AI service, error mapping, availability check |
-| `records` | Lab results, medicines, trends, flag calculation, corrections |
-| `search` | Owner-scoped substring search across details, page text, tests and medicines |
-| `account` | Data export, account deletion |
-| `common`, `config`, `health` | Error format, security and scheduling config, health endpoint |
+Package responsibilities, the domain model and state machines: [component design](component-design.md).
+Every flow step by step: [sequence diagrams](sequence-diagrams.md).
 
 ## 3. Upload
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant B as Browser
-    participant API as Spring Boot
-    participant FS as Storage (data/uploads)
-    participant DB as PostgreSQL
-
-    B->>API: POST /documents (multipart, one file, XHR progress)
-    API->>API: detect type from magic bytes (PDF/JPEG/PNG), 10 MB limit
-    API->>FS: stream to temp file → atomic move, SHA-256 computed on the way
-    API->>DB: duplicate? (user_id, sha256)
-    alt duplicate
-        API->>FS: delete stored file
-        API-->>B: 409 DUPLICATE_DOCUMENT + existingDocumentId
-    else new
-        API->>DB: INSERT documents (status UPLOADED)
-        API-->>B: 201 Location: /documents/{id}
-    end
-
-    B->>API: GET /documents/{id}/file (Bearer)
-    API->>DB: findByIdAndUserId (404 if not owner)
-    API-->>B: bytes, inline, Cache-Control no-store
-    Note over B: shown via blob: URL, revoked on leave
-```
+![Upload sequence](../../assets/diagrams/upload-sequence.svg)
 
 ### Ownership rules (privacy)
 
@@ -147,25 +54,7 @@ sequenceDiagram
 
 ## 4. Processing
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant W as Worker (every 2s)
-    participant DB as PostgreSQL
-    participant FS as Storage
-    participant AI as AI service
-
-    W->>DB: claim due jobs (UPDATE … FOR UPDATE SKIP LOCKED), recover stale RUNNING jobs
-    W->>DB: tx 1: document → PROCESSING
-    W->>FS: load stored file
-    W->>AI: POST /v1/ocr (multipart)
-    AI-->>W: per-page text, source, confidence
-    W->>AI: POST /v1/extract (pages with text)
-    AI-->>W: validated, safety-checked ExtractionResult + meta
-    W->>DB: tx 2: replace pages, labs (+ flags), medicines, terms · metadata unless user-edited · extraction_runs row
-    W->>DB: tx 3: job DONE, document READY
-    Note over W,DB: on failure: retry after 30s, 60s, … (≤1h, 3 attempts) or FAILED with a plain message
-```
+![Processing sequence](../../assets/diagrams/processing-sequence.svg)
 
 No transaction is open during either AI call. The browser follows progress by polling every 3s while a document is waiting or processing.
 
@@ -220,35 +109,7 @@ Wrong passwords are counted in a 15-minute sliding window: **5 per account, 30 p
 
 ## 6. AI service pipeline
 
-```
-file bytes
-   │
-   ▼
-detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
-   │
-   ├── PDF ──► pypdf text layer (layout mode, per page)
-   │             │  page has ≥ 25 letters/digits? ──► PDF_TEXT (exact)
-   │             └─ otherwise ──► render page with pypdfium2 (~300 DPI) ─┐
-   │                                                                      │
-   └── image ──► Pillow: EXIF rotation ───────────────────────────────────┤
-                                                                          ▼
-                              prepare: grayscale · resize 1800–4000 px · autocontrast
-                                                                          │
-                              OcrProvider (Tesseract | Cloud placeholder) │
-                              orientation fix (OSD) → words + confidence  │
-                                                                          ▼
-                              per-page text, source, confidence, pagesWithoutText
-                                                                          │
-                                                             ▼
-                       prompt extraction-v1 + JSON schema ──► LLM provider (mock | anthropic)
-                                                             │
-                       JSON parse + ExtractionResult validation ── fail ──► one corrective retry
-                                                             │
-                       safety check on free text (summary, title, definitions) ── unsafe ──► retry,
-                                                             │                    then sanitize
-                                                             ▼
-                                         ExtractResponse { extraction, meta }
-```
+![OCR and extraction pipeline](../../assets/diagrams/ai-pipeline.svg)
 
 | Page kind | Source | Typical time | Accuracy |
 |---|---|---|---|
@@ -294,7 +155,7 @@ detect type (magic bytes) ──► 415 if not PDF/JPEG/PNG
 - **Single refresh at a time:** browser refresh calls are shared (single-flight).
 - **Uploads too:** `withAuthRecovery()` gives fetch and XHR uploads the same refresh-and-retry.
 
-See [SECURITY.md](../../SECURITY.md) for the full security model.
+See [security design](security-design.md) for the full security model.
 
 ## 8. Frontend
 
@@ -314,19 +175,7 @@ Vitest + Testing Library tests against a mocked API.
 
 ## 9. Deployment
 
-```mermaid
-flowchart LR
-    internet(["Internet"]) -- "443 / 80→443" --> caddy["Caddy<br/>TLS · HSTS"]
-    subgraph host["Docker host (docker/docker-compose.prod.yml)"]
-        caddy --> nginx["frontend: nginx<br/>SPA · CSP · /api proxy"]
-        nginx --> backend["backend<br/>Spring Boot"]
-        backend --> ai["ai-service<br/>FastAPI + Tesseract"]
-        backend --> db[("db<br/>PostgreSQL 16")]
-        backend --> uploads[("medfold_uploads volume")]
-        db --> pgdata[("medfold_pgdata volume")]
-    end
-    ai --> llm(["Anthropic API"])
-```
+![Production deployment: Caddy, nginx, backend, AI service and PostgreSQL on one Docker host](../../assets/diagrams/deployment.svg)
 
 Only Caddy publishes ports; HTTP is redirected to HTTPS.
 
@@ -334,4 +183,4 @@ Only Caddy publishes ports; HTTP is redirected to HTTPS.
 - **Refresh-token cleanup:** a daily job deletes tokens one day after they expire. Revoked tokens are kept until then, because presenting one again is how reuse is detected.
 - **Images:** the backend is built with the Maven wrapper and runs on a JRE as a non-root user; the frontend is built with Vite and served by nginx (SPA fallback, immutable hashed assets, 11 MB upload limit).
 
-Details: [deployment](../deployment/README.md).
+Details: [deployment](../06-deployment/README.md).

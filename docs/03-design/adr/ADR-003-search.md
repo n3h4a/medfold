@@ -30,4 +30,4 @@ snippet of the page text around the first word.
 - Simple, predictable, and private: data never leaves PostgreSQL, and ownership is enforced in SQL.
 - Sequential scans over one user's rows are fast at personal scale (milliseconds for hundreds of
   documents). Ranking and typo tolerance are missing; `pg_trgm` is the planned step if needed
-  ([ROADMAP.md](../../ROADMAP.md)).
+  ([ROADMAP.md](../../../ROADMAP.md)).

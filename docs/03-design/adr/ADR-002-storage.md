@@ -35,4 +35,4 @@ owner-scoped; files must never be reachable by guessing a path.
 - One database to run, back up and restore (`scripts/backup.sh` dumps it next to the files).
 - Moving to object storage means one new `StorageService` implementation; callers never see paths.
 - Local-disk storage ties uploads to one host until then (see
-  [KNOWN_LIMITATIONS.md](../../KNOWN_LIMITATIONS.md)).
+  [KNOWN_LIMITATIONS.md](../../../KNOWN_LIMITATIONS.md)).

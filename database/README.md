@@ -7,104 +7,7 @@ backend applies them on start and Hibernate only validates against them (`ddl-au
 
 ## Entity-relationship diagram
 
-```mermaid
-erDiagram
-    users ||--o{ refresh_tokens : "has sessions"
-    users ||--o{ documents : owns
-    documents ||--o{ document_pages : "text per page"
-    documents ||--o{ lab_results : "test rows"
-    documents ||--o{ medications : "medicines"
-    documents ||--o{ document_terms : "explained terms"
-    documents ||--o{ processing_jobs : "queued work"
-    documents ||--o{ extraction_runs : "AI audit trail"
-
-    users {
-        uuid id PK
-        varchar email UK "stored lower-case"
-        varchar password_hash "BCrypt"
-        varchar full_name
-    }
-    refresh_tokens {
-        uuid id PK
-        uuid user_id FK
-        varchar token_hash UK "SHA-256, never the token"
-        timestamptz expires_at
-        timestamptz revoked_at
-    }
-    documents {
-        uuid id PK
-        uuid user_id FK
-        varchar storage_key UK
-        varchar sha256 "unique per user"
-        varchar status "UPLOADED, PROCESSING, READY, FAILED"
-        varchar doc_type
-        date doc_date
-        varchar title
-        text summary
-        boolean user_edited
-    }
-    document_pages {
-        uuid id PK
-        uuid document_id FK
-        int page_number
-        text text
-        varchar source "PDF_TEXT, TESSERACT, CLOUD, NONE"
-        real confidence
-    }
-    lab_results {
-        uuid id PK
-        uuid document_id FK
-        varchar test_name "as printed"
-        varchar test_key "canonical, e.g. hba1c"
-        varchar value_text "as printed"
-        numeric value_numeric
-        varchar ref_text "as printed"
-        numeric ref_low
-        numeric ref_high
-        varchar flag "LOW, NORMAL, HIGH, computed by the backend"
-        date observed_on
-        boolean user_edited
-    }
-    medications {
-        uuid id PK
-        uuid document_id FK
-        varchar name
-        varchar extracted_name "as first read"
-        varchar dosage
-        varchar frequency
-        date prescribed_on
-        boolean user_edited
-    }
-    document_terms {
-        uuid id PK
-        uuid document_id FK
-        varchar term
-        varchar definition
-    }
-    processing_jobs {
-        uuid id PK
-        uuid document_id FK
-        uuid user_id
-        varchar status "PENDING, RUNNING, DONE, FAILED"
-        int attempts
-        timestamptz next_run_at
-        timestamptz locked_at
-    }
-    extraction_runs {
-        uuid id PK
-        uuid document_id FK
-        varchar llm_provider
-        varchar llm_model
-        varchar prompt_version
-        boolean safety_filtered
-        text raw_output
-    }
-    login_failures {
-        bigint id PK
-        char throttle_key "SHA-256"
-        timestamptz failed_at
-    }
-```
+![Entity-relationship diagram](../assets/diagrams/erd.svg)
 
 Every table below `documents` also carries `user_id`, so each read can be scoped to the owner
 without a join. `login_failures` stands alone: it is keyed by hashed email or client address.
@@ -138,7 +41,7 @@ without a join. `login_failures` stands alone: it is keyed by hashed email or cl
 | `extraction_runs (document_id, created_at DESC)` | Latest run of a document |
 
 Search uses `ILIKE` substring matching without an index; see
-[ADR-003](../docs/decisions/ADR-003-search.md) for why that is the right trade-off at this scale.
+[ADR-003](../docs/03-design/adr/ADR-003-search.md) for why that is the right trade-off at this scale.
 
 ## Migrations
 

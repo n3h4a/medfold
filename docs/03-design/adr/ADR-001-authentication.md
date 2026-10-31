@@ -19,7 +19,7 @@ without asking for the password again.
   revoked.
 - **Passwords:** BCrypt; login attempts with unknown emails take the same time as real ones.
 - **Rate limiting:** wrong passwords are counted per account and per client address in the
-  database (see [SECURITY.md](../../SECURITY.md#rate-limiting)).
+  database (see [security design](../security-design.md#rate-limiting)).
 
 ## Alternatives considered
 

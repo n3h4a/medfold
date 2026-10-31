@@ -7,7 +7,7 @@ personal-scale v1.0; most have a planned next step in [ROADMAP.md](ROADMAP.md).
 
 - **No medical advice or interpretation.** Medfold describes documents. The "Below / Within /
   Above printed range" comparison is arithmetic against the range on the same report, not a
-  clinical judgment ([ADR-007](docs/decisions/ADR-007-ai-safety-boundary.md)).
+  clinical judgment ([ADR-007](docs/03-design/adr/ADR-007-ai-safety-boundary.md)).
 - **No hospital or lab integration.** Records come only from uploaded files; there is no
   FHIR/HL7 import, and nothing is shared with doctors.
 - **Sex- and age-specific ranges** ("M: 13–17, F: 12–15") aren't parsed; such results get no

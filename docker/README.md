@@ -18,7 +18,7 @@ Each Dockerfile sits next to the code it builds, so its build context is just th
 docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml up -d --build
 ```
 
-Full guide: [docs/deployment/production.md](../docs/deployment/production.md).
+Full guide: [docs/06-deployment/deployment-guide.md](../docs/06-deployment/deployment-guide.md).
 
 ## Volumes
 

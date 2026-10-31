@@ -19,26 +19,11 @@ A runnable collection of every endpoint is in [`postman/`](../../postman/README.
 - Presenting an already-rotated refresh token again revokes **every** session of that user
   (theft detection).
 - Wrong passwords are limited per account and per client address; see
-  [SECURITY.md](../../SECURITY.md#rate-limiting).
+  [security design](security-design.md#rate-limiting).
 
 ## Request flow
 
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant F as Security filter
-    participant H as Controller
-    participant S as Service
-    participant R as Owner-scoped repository
-    C->>F: Authorization: Bearer <JWT>
-    F->>F: verify signature, expiry, issuer
-    F->>H: user id from the token
-    H->>H: validate body (Bean Validation)
-    H->>S: call with userId
-    S->>R: findByIdAndUserId(id, userId)
-    R-->>S: row, or empty if missing or not yours
-    S-->>C: 200 / 404 with the standard error body
-```
+![How an authenticated request is handled](../../assets/diagrams/request-flow.svg)
 
 There is no endpoint that takes a user id from the client: the owner always comes from the token.
 

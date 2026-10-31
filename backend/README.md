@@ -11,7 +11,7 @@ docker compose up -d db          # from the repository root
 ```
 
 Configuration comes from environment variables or the repository-root `.env`; see
-[docs/deployment](../docs/deployment/README.md#environment-variables) and
+[environment variables](../docs/06-deployment/environment-variables.md) and
 [`application.yml`](src/main/resources/application.yml).
 
 ## Test

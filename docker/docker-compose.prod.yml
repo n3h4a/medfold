@@ -1,6 +1,6 @@
 # Production overlay: HTTPS in front, nothing else reachable from outside.
 #   docker compose -f docker-compose.yml -f docker/docker-compose.prod.yml up -d --build
-# See docs/deployment/production.md.
+# See docs/06-deployment/deployment-guide.md.
 
 services:
   caddy:

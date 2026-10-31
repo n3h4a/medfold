@@ -58,5 +58,5 @@ app/
 └── security.py    internal key check
 ```
 
-How the pipeline works and why: [architecture §6](../docs/architecture/README.md#6-ai-service-pipeline),
-[ADR-004](../docs/decisions/ADR-004-ocr.md), [ADR-007](../docs/decisions/ADR-007-ai-safety-boundary.md).
+How the pipeline works and why: [architecture §6](../docs/03-design/architecture.md#6-ai-service-pipeline),
+[ADR-004](../docs/03-design/adr/ADR-004-ocr.md), [ADR-007](../docs/03-design/adr/ADR-007-ai-safety-boundary.md).
