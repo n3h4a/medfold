@@ -17,7 +17,7 @@ Configuration comes from environment variables or the repository-root `.env`; se
 ## Test
 
 ```bash
-./mvnw test        # 222 tests; Testcontainers starts a throwaway PostgreSQL, so Docker must run
+./mvnw test        # 223 tests; Testcontainers starts a throwaway PostgreSQL, so Docker must run
 ```
 
 Highlights: `UserIsolationTest` (every route classified, every owned route attacked by a second

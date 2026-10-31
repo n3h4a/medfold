@@ -3,7 +3,7 @@
 ```
 medfold/
 ├── README.md, LICENSE, CHANGELOG.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md,
-│   SECURITY.md, ROADMAP.md, KNOWN_LIMITATIONS.md
+│   SECURITY.md, ROADMAP.md, KNOWN_LIMITATIONS.md, PROJECT_STATUS.md, FEATURE_MATRIX.md
 ├── docker-compose.yml          whole app on one machine (development, demo, CI)
 ├── .env.example                every setting, with safe local defaults
 │
@@ -32,8 +32,9 @@ medfold/
 │   │   ├── api/                typed client, token refresh, endpoints
 │   │   ├── auth/               session, login and register pages, route guards
 │   │   ├── app/                router, layout, providers
-│   │   ├── features/           documents, labs, medications, account, status
-│   │   ├── components/         shared form controls
+│   │   ├── features/           overview, documents, labs, medications, summary, search,
+│   │   │                       account, status
+│   │   ├── components/         icons, shared UI (cards, badges, sparkline), form controls
 │   │   └── test/               test setup and API mocks
 │   ├── public/                 favicon
 │   ├── nginx.conf              production web server and /api proxy
@@ -52,11 +53,14 @@ medfold/
 ├── docs/                       00-project … 09-appendix (see docs/README.md)
 ├── docker/                     production overlay, Caddy, Docker notes
 ├── scripts/                    start-dev, stop-dev, seed-demo-data, reset-db, cleanup,
-│                               backup, restore
-├── tests/                      sample PDFs and images, their generator, k6 load test
+│                               backup, restore, verify-claims, security-check
+├── tests/                      sample PDFs and images (live-upload/ for the video), generator,
+│                               k6 load test
 ├── postman/                    API collection and environments
-├── demo/                       demo GIF and video, screenshots
-├── assets/                     logo, diagrams (sources + SVG), charts, branding
+├── demo/                       video, GIF, screenshots, narration; src/ records the video
+├── assets/                     overview image, logo, diagrams, charts, branding; src/ draws
+│                               the overview, numbers card and request-flow animation
+├── .devcontainer/              GitHub Codespaces: full stack with demo data
 └── .github/                    CI workflow, issue forms, pull request template
 ```
 

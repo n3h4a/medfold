@@ -57,6 +57,15 @@ Each use case lists its acceptance criteria and the automated tests that verify 
 | Any word in details, page text, test or medicine names finds the document, with a snippet | `SearchApiTest.findsWordsInPageTextWithASnippetAndThePage`, `findsDocumentDetailsTestsAndMedicinesByPartOfAWord` |
 | Every word must match | `everyWordMustMatchSomewhereInTheSameDocument` |
 | Another user's documents never appear | `neverReturnsAnotherUsersDocuments` |
+| Search is reachable from every page with the keyboard (Ctrl/⌘ K) | `CommandPalette.test.tsx` |
+
+## UC6b: Prepare for an appointment
+
+| Acceptance criterion | Verified by |
+|---|---|
+| One page lists every test's latest value, printed range, comparison and previous value, results outside the range first | `VisitSummaryPage.test.tsx` "puts results outside the printed range first…" |
+| The latest prescription and the source documents are on the same page; it prints cleanly | same test; print styles in `index.css` |
+| The overview points out latest results outside the printed range | `OverviewPage.test.tsx` "summarises the record…" |
 
 ## UC7: Take my data or leave
 

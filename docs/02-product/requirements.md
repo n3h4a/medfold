@@ -25,6 +25,10 @@ the [project overview](../00-project/overview.md); how each requirement is verif
 | F14 | Download all data; delete the account | Should | Done |
 | F15 | Share records with a doctor | Could | [Planned](https://github.com/n3h4a/medfold/issues/9) |
 | F16 | Password reset, two-factor authentication | Could | [Planned](https://github.com/n3h4a/medfold/issues/1) |
+| F17 | Overview of the record: what changed, what is outside the printed range | Should | Done (v1.1) |
+| F18 | One printable summary to take to an appointment | Should | Done (v1.1) |
+| F19 | Search from any page with the keyboard | Could | Done (v1.1) |
+| F20 | Dark mode | Could | Done (v1.1) |
 
 ## Non-functional requirements
 
@@ -38,7 +42,7 @@ the [project overview](../00-project/overview.md); how each requirement is verif
 | N6 | Secure by default | HTTPS, CSP, hashed secrets, rate limiting | [Security design](../03-design/security-design.md) |
 | N7 | Accessible | Keyboard and screen-reader friendly controls; text alternatives for charts | Labels and roles tested in UI tests |
 | N8 | One-command setup | `docker compose up` | Verified in CI |
-| N9 | Test coverage | > 85% of lines per service | 92.6–93.5% |
+| N9 | Test coverage | > 85% of lines per service | 93.3–97.1% |
 
 ## Out of scope for v1.0
 

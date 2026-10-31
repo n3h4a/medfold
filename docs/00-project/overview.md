@@ -64,7 +64,7 @@ Each is checked by something in this repository:
 | Fast | p95 latency of reads under load | [Performance testing](../05-testing/performance-testing.md) | 6.5–11 ms at 20 concurrent users |
 | Fast | Upload to READY for a digital PDF | Load test | 2.1 s (p95) |
 | Private | Every endpoint classified; owned resources attacked by a second user | `UserIsolationTest` | All 25 routes |
-| Quality | Line coverage per service | [Test plan](../05-testing/test-plan.md) | 92.6–93.5% |
+| Quality | Line coverage per service | [Test plan](../05-testing/test-plan.md) | 93.3–97.1% |
 
 ## Non-goals
 
