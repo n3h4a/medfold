@@ -21,9 +21,9 @@ into a searchable timeline with test results tracked over time. It describes wha
 say and never gives medical advice.
 
 <p align="center">
-  <img src="assets/demo/medfold-demo.gif" alt="Demo: logging in, uploading a thyroid report that is read automatically, its results, an HbA1c trend and search" width="820">
+  <img src="demo/quick-demo.gif" alt="Demo: logging in, uploading a thyroid report that is read automatically, its results, an HbA1c trend and search" width="820">
   <br><sub>Upload → read automatically → results compared with the printed range → trends → search
-  (<a href="assets/demo/medfold-demo.mp4">MP4</a>). All data shown is synthetic.</sub>
+  (<a href="demo/demo-video.mp4">MP4</a>). All data shown is synthetic.</sub>
 </p>
 
 ## Highlights
@@ -44,16 +44,16 @@ say and never gives medical advice.
 
 | Timeline | Document with extracted results |
 |---|---|
-| ![Timeline grouped by month with search](assets/screenshots/timeline.png) | ![Original PDF next to extracted details, test results and terms](assets/screenshots/document-detail.png) |
+| ![Timeline grouped by month with search](demo/screenshots/timeline.png) | ![Original PDF next to extracted details, test results and terms](demo/screenshots/document-detail.png) |
 | **Trend across reports** | **Search** |
-| ![HbA1c over two years with the printed range shaded](assets/screenshots/lab-trend.png) | ![Search for a medicine with a snippet](assets/screenshots/search.png) |
+| ![HbA1c over two years with the printed range shaded](demo/screenshots/lab-trend.png) | ![Search for a medicine with a snippet](demo/screenshots/search.png) |
 
 <details>
 <summary>More: test results, medicines, mobile</summary>
 
 | Test results | Medicines | Mobile |
 |---|---|---|
-| ![Every test with its latest value](assets/screenshots/test-results.png) | ![Medicines as written](assets/screenshots/medicines.png) | ![Trend on a phone](assets/screenshots/mobile-trend.png) |
+| ![Every test with its latest value](demo/screenshots/test-results.png) | ![Medicines as written](demo/screenshots/medicines.png) | ![Trend on a phone](demo/screenshots/mobile-trend.png) |
 
 </details>
 

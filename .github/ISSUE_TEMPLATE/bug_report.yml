@@ -4,7 +4,7 @@ labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: Please don't include real medical documents or personal data. Use files from `tests/fixtures/` to reproduce if you can. Security issues go through SECURITY.md, not here.
+      value: Please don't include real medical documents or personal data. Use files from `tests/sample-pdfs/` to reproduce if you can. Security issues go through SECURITY.md, not here.
   - type: textarea
     id: what
     attributes:
@@ -16,7 +16,7 @@ body:
     id: steps
     attributes:
       label: Steps to reproduce
-      placeholder: "1. Upload tests/fixtures/reports/...\n2. ..."
+      placeholder: "1. Upload tests/sample-pdfs/...\n2. ..."
     validations:
       required: true
   - type: dropdown

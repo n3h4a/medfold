@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "42b63d87-5c5f-5210-8029-cc0baceb83ab",
     "name": "Medfold API",
-    "description": "Every endpoint of the Medfold REST API, in the order you'd use them. Run the whole collection: it registers a fresh account, uploads a synthetic report, waits for processing, exercises results, editing, search and export, and finally deletes the account.\n\nSet `baseUrl` in the environment. When running with Newman, pass `--working-dir` pointing at the repository root so the upload finds `tests/fixtures/`.\n\nDocs: docs/api/README.md",
+    "description": "Every endpoint of the Medfold REST API, in the order you'd use them. Run the whole collection: it registers a fresh account, uploads a synthetic report, waits for processing, exercises results, editing, search and export, and finally deletes the account.\n\nSet `baseUrl` in the environment. When running with Newman, pass `--working-dir` pointing at the repository root so the upload finds `tests/sample-pdfs/`.\n\nDocs: docs/api/README.md",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -280,7 +280,7 @@
                 {
                   "key": "file",
                   "type": "file",
-                  "src": "tests/fixtures/reports/complete-blood-count-2026-03-02.pdf"
+                  "src": "tests/sample-pdfs/complete-blood-count-2026-03-02.pdf"
                 }
               ]
             }

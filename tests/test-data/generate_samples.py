@@ -3,7 +3,7 @@ Generates the synthetic medical documents used for demos, screenshots and end-to
 
 Every document is invented and says so on the page. Run from the repository root:
 
-    python tests/fixtures/generate_reports.py
+    python tests/test-data/generate_samples.py
 
 Needs reportlab and Pillow (both in the AI service's dev dependencies).
 """
@@ -14,9 +14,9 @@ from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
-HERE = Path(__file__).parent
-REPORTS = HERE / "reports"
-IMAGES = HERE / "images"
+TESTS = Path(__file__).resolve().parent.parent
+REPORTS = TESTS / "sample-pdfs"
+IMAGES = TESTS / "sample-images"
 
 LAB = "Medfold Demo Diagnostics Laboratory"
 CLINIC = "Medfold Demo Clinic"
@@ -33,7 +33,8 @@ METABOLIC = [
 
 
 def _page(path: Path, header: str, lines: list[tuple[str, ...]], columns=(50, 240, 330, 420)) -> None:
-    c = canvas.Canvas(str(path), pagesize=A4)
+    # invariant=1: no timestamps or random ids, so regenerating gives byte-identical files.
+    c = canvas.Canvas(str(path), pagesize=A4, invariant=1)
     c.setTitle(path.stem)
     c.setFont("Helvetica-Bold", 15)
     c.drawString(50, 800, header)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Creates a demo account and uploads the synthetic reports in tests/fixtures, then waits until
+# Creates a demo account and uploads the synthetic reports in tests/sample-pdfs, then waits until
 # they are processed. Safe to run again: it logs in if the account exists, skips duplicates and
 # re-queues documents that failed.
 #   scripts/seed-demo-data.sh                      # local development (backend on :8080)
@@ -23,8 +23,8 @@ else
   echo "Created $EMAIL"
 fi
 
-files=(tests/fixtures/reports/*.pdf)
-[ "${WITH_PHOTO:-}" = "1" ] && files+=(tests/fixtures/images/*.png)
+files=(tests/sample-pdfs/*.pdf)
+[ "${WITH_PHOTO:-}" = "1" ] && files+=(tests/sample-images/*.png)
 for file in "${files[@]}"; do
   code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API_URL/documents" \
     -H "Authorization: Bearer $token" -F "file=@$file")

@@ -12,7 +12,7 @@ assertions, and tokens and ids are passed along automatically.
 | `medfold.docker.postman_environment.json` | `http://localhost:3000/api/v1` (`docker compose up`) |
 
 **In Postman:** import the collection and an environment, select the environment, and use
-*Run collection*. For the upload request, select a file from `tests/fixtures/reports/`.
+*Run collection*. For the upload request, select a file from `tests/sample-pdfs/`.
 
 **From the command line** (this is what CI runs against the Docker stack):
 

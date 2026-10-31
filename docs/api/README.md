@@ -124,7 +124,7 @@ Upload a report and watch it being processed:
 
 ```bash
 ID=$(curl -s -X POST $API/documents -H "Authorization: Bearer $TOKEN" \
-  -F file=@tests/fixtures/reports/complete-blood-count-2026-03-02.pdf | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+  -F file=@tests/sample-pdfs/complete-blood-count-2026-03-02.pdf | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 curl -s $API/documents/$ID/status -H "Authorization: Bearer $TOKEN"
 ```
 
