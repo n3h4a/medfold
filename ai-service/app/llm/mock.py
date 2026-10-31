@@ -214,7 +214,7 @@ def _join(names: list[str]) -> str:
 def _summary(doc_type, doc_date, provider, facility, title, labs, meds) -> str:
     """Strictly descriptive: says what the document contains, never what it means."""
     label = _TYPE_LABEL[doc_type]
-    first = f"This is a {label}"
+    first = f"This is {'an' if label[0] in 'aeiou' else 'a'} {label}"
     if facility:
         first += f" from {facility}"
     if doc_date:

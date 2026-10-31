@@ -81,3 +81,9 @@ def test_ignores_dates_of_birth_and_reads_day_first_dates():
     result = extract([(1, "Patient DOB: 01/02/1990\nReport date: 05/03/2024\nReference range below")])
 
     assert result["docDate"] == "2024-03-05"
+
+
+def test_summaries_use_the_right_article():
+    imaging = extract([(1, "Medfold Demo Imaging Clinic\nReport date: 2025-08-11\nX-RAY CHEST PA VIEW\nLungs: clear.")])
+    assert imaging["docType"] == "IMAGING_REPORT"
+    assert imaging["summary"].startswith("This is an imaging report")
