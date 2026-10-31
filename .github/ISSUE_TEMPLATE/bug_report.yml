@@ -1,0 +1,39 @@
+name: Bug report
+description: Something doesn't work as described.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Please don't include real medical documents or personal data. Use files from `tests/fixtures/` to reproduce if you can. Security issues go through SECURITY.md, not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Upload tests/fixtures/reports/...\n2. ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Upload, Reading (OCR / extraction), Results and trends, Search, Editing, Accounts and login, Deployment, Other]
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: How you run Medfold
+      placeholder: "docker compose / start-dev.sh / production overlay; LLM_PROVIDER=mock or anthropic"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant lines from `docker compose logs` or `.dev/*.log`, without personal data.
+      render: text
