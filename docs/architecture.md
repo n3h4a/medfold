@@ -383,25 +383,25 @@ Every error, in both services, uses `{status, code, message, fields?, details?}`
 | 22 | Safety post-check for diagnosis, advice and judgment wording | `bdd26ff` |
 | 23 | Tables and entities for results, jobs and extraction runs | `183fb9d` |
 | 24 | Job queue on upload + background worker | `c6e70f3` |
-| 25 | `AiServiceClient` with retry/permanent error mapping | `4945d4d` |
-| 26 | Real processor: OCR → extraction → stored results; processing on by default | `0af8cad` |
-| 27 | Lab flags from the printed reference range | `4b18a3f` |
-| 28 | Document results + reprocess endpoints | `91ec51c` |
-| 29 | Frontend: follow processing, show results, try again | `72ea1fc` |
-| 30 | Lab trends, medicines list, month-grouped timeline | `5e9568e` |
-| 31 | Search by any word in details, text, tests and medicines | `f0bfbbc` |
-| 32–33 | Backend: correct document details, lab results and medicines; corrections survive reprocessing | `3c38c0f` |
-| 34 | Frontend: editing forms, Edit / Remove on results | `9785dee` |
-| 35 | Refresh-token cleanup; backend and frontend in Docker Compose | `a87ea55` |
-| 36 | Trend charts across units with standard conversions | `65d2551` |
-| 37 | Delete account and everything in it | `470ee20` |
-| 38 | Download all data as JSON | `b13a570` |
-| 39 | AI service availability on the status page | `8878c8d` |
-| 40 | Login and account-deletion throttling | `35ea90c` |
-| 41 | CI on GitHub Actions for all three services and the images | `ca7975b` |
-| 42 | Login-throttling counts in the database | `49cea5d` |
-| 43 | Renamed medicines on reprocessing; units equal by definition | `0207123` |
-| 44 | Production deployment: HTTPS, security headers, backups and restore | `b95473b` |
+| 25 | `AiServiceClient` with retry/permanent error mapping | `99c61a9` |
+| 26 | Real processor: OCR → extraction → stored results; processing on by default | `897a64f` |
+| 27 | Lab flags from the printed reference range | `526fa12` |
+| 28 | Document results + reprocess endpoints | `7765e78` |
+| 29 | Frontend: follow processing, show results, try again | `e418c0f` |
+| 30 | Lab trends, medicines list, month-grouped timeline | `bdaff04` |
+| 31 | Search by any word in details, text, tests and medicines | `4d01e04` |
+| 32–33 | Backend: correct document details, lab results and medicines; corrections survive reprocessing | `f0bcdd3` |
+| 34 | Frontend: editing forms, Edit / Remove on results | `891a35b` |
+| 35 | Refresh-token cleanup; backend and frontend in Docker Compose | `0b899a5` |
+| 36 | Trend charts across units with standard conversions | `60e3866` |
+| 37 | Delete account and everything in it | `2cb8fa6` |
+| 38 | Download all data as JSON | `22ec940` |
+| 39 | AI service availability on the status page | `166390a` |
+| 40 | Login and account-deletion throttling | `de595ad` |
+| 41 | CI on GitHub Actions for all three services and the images | `72d6483` |
+| 42 | Login-throttling counts in the database | `6974cfd` |
+| 43 | Renamed medicines on reprocessing; units equal by definition | `60241ad` |
+| 44 | Production deployment: HTTPS, security headers, backups and restore | `22a1b0f` |
 
 ---
 
