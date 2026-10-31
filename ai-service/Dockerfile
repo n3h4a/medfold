@@ -12,9 +12,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Exact versions from the lock file first (cached until requirements.txt changes), then the app.
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
 COPY pyproject.toml ./
 COPY app ./app
-RUN pip install .
+RUN pip install --no-deps .
 
 RUN useradd --create-home --uid 1000 medfold
 USER medfold

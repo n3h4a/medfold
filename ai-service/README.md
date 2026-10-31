@@ -14,7 +14,15 @@ uvicorn app.main:app --reload --port 8000     # API docs: http://localhost:8000/
 
 Install Tesseract (`apt install tesseract-ocr tesseract-ocr-eng tesseract-ocr-osd`, or
 `brew install tesseract`) for scans and photos; digital PDFs don't need it. The Docker image
-includes it. Dependencies are declared once, in [`pyproject.toml`](pyproject.toml).
+includes it.
+
+Dependencies are declared in [`pyproject.toml`](pyproject.toml). [`requirements.txt`](requirements.txt)
+is the lock file with exact versions, used by the Docker image; regenerate it after changing
+dependencies:
+
+```bash
+pip install pip-tools && pip-compile --strip-extras --output-file=requirements.txt pyproject.toml
+```
 
 | Setting | Default | |
 |---|---|---|
