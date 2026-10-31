@@ -3,6 +3,7 @@ Draws the charts in docs/05-testing from real measurements:
 
 - latency.svg  from tests/performance/results.json (written by the k6 load test)
 - coverage.svg from coverage.json next to this script (numbers from the three coverage reports)
+- problem-scores.svg from problem-scores.json (the scores of the Razorpay problem statement)
 
     python assets/charts/make_charts.py
 """
@@ -31,7 +32,7 @@ def bar_chart(title, subtitle, rows, series, unit, max_value, path, tick_step, f
            f'<text x="24" y="34" {FONT} font-size="17" font-weight="600" fill="{INK}">{escape(title)}</text>',
            f'<text x="24" y="56" {FONT} font-size="12.5" fill="{MUTED}">{escape(subtitle)}</text>']
     lx = 24
-    for (name, color) in series:  # legend
+    for (name, color) in (series if len(series) > 1 else []):  # legend (none for a single series)
         out.append(f'<rect x="{lx}" y="68" width="12" height="12" rx="3" fill="{color}"/>')
         out.append(f'<text x="{lx + 18}" y="78.5" {FONT} font-size="12" fill="{MUTED}">{escape(name)}</text>')
         lx += 18 + 7.2 * len(name) + 22
@@ -71,7 +72,21 @@ def coverage():
               rows, [("Lines", DARK), ("Branches", LIGHT)], "%", 100, HERE / "coverage.svg", 25, lambda v: f"{v:.1f}" if v % 1 else f"{v:.0f}")
 
 
+def problem_scores():
+    p = json.loads((HERE / "problem-scores.json").read_text())
+    rows = [(s["name"], [s["value"]]) for s in p["scores"]]
+    path = HERE / "problem-scores.svg"
+    bar_chart("How the problem scored", f"{p['source']}, scores out of 10", rows, [("Score", DARK)], "", 10,
+              path, 2, lambda v: f"{v:.1f}" if v % 1 else f"{v:.0f}")
+    # Headline number in the top-right corner: the itch score is on its own scale.
+    svg = path.read_text().replace("</svg>",
+        f'<text x="736" y="44" {FONT} font-size="12.5" fill="{MUTED}" text-anchor="end">ITCH SCORE</text>'
+        f'<text x="736" y="84" {FONT} font-size="38" font-weight="700" fill="{DARK}" text-anchor="end">{p["itch"]}</text></svg>')
+    path.write_text(svg)
+
+
 if __name__ == "__main__":
     latency()
     coverage()
-    print("wrote latency.svg and coverage.svg")
+    problem_scores()
+    print("wrote latency.svg, coverage.svg and problem-scores.svg")

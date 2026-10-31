@@ -1,0 +1,11 @@
+{
+  "source": "Razorpay HealthTech problem statement",
+  "problem": "Why can't patients access digital copies of medical records?",
+  "itch": 73.5,
+  "scores": [
+    { "name": "Severity", "value": 9 },
+    { "name": "TAM", "value": 10 },
+    { "name": "Whitespace", "value": 8.5 },
+    { "name": "Frequency", "value": 9 }
+  ]
+}

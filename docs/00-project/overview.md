@@ -6,6 +6,17 @@ Everyone can see their own medical history in one place: every report and prescr
 ever received, readable, searchable and comparable over time, without handing judgment about
 their health to software.
 
+## Origin
+
+The problem comes from a HealthTech problem statement published by Razorpay, *"Why can't patients
+access digital copies of medical records?"*, scored Severity 9, TAM 10, Whitespace 8.5,
+Frequency 9, with an **itch score of 73.5**. The statement is about hospitals not giving patients
+their records digitally; Medfold reframes it around what patients already hold, the paper and
+PDFs, and makes those digital, searchable and portable without needing hospitals to change.
+The full story is in the [README](../../README.md#the-story).
+
+![Severity 9, TAM 10, Whitespace 8.5, Frequency 9, itch score 73.5](../../assets/charts/problem-scores.svg)
+
 ## Problem
 
 People collect years of medical paperwork from different labs, clinics and hospitals: PDFs in
