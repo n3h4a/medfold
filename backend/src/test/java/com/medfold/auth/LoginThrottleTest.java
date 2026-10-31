@@ -9,12 +9,21 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.medfold.common.ApiException;
+import com.medfold.support.TestcontainersConfiguration;
 
+/** Runs against the real login_failures table, with a clock the test moves by hand. */
+@SpringBootTest
+@Import(TestcontainersConfiguration.class)
 class LoginThrottleTest {
 
     /** A clock the test moves by hand. */
@@ -37,14 +46,18 @@ class LoginThrottleTest {
         }
     }
 
+    @Autowired private JdbcTemplate jdbcTemplate;
+
     private final TestClock clock = new TestClock();
     private LoginThrottle throttle;
-    private final String alice = LoginThrottle.accountKey("Alice@Example.com ");
-    private final String home = LoginThrottle.addressKey("203.0.113.7");
+    // Unique per test: the table is shared with every other test.
+    private final String run = UUID.randomUUID().toString();
+    private final String alice = LoginThrottle.accountKey("Alice-" + run + "@Example.com ");
+    private final String home = LoginThrottle.addressKey("203.0.113.7/" + run);
 
     @BeforeEach
     void setUp() {
-        throttle = new LoginThrottle(new LoginThrottleProperties(5, 8, Duration.ofMinutes(15)), clock);
+        throttle = new LoginThrottle(new LoginThrottleProperties(5, 8, Duration.ofMinutes(15)), clock, jdbcTemplate);
     }
 
     private void fail(String account, String address, int times) {
@@ -66,7 +79,7 @@ class LoginThrottleTest {
         // The first failure was 50s ago; it leaves the 15-minute window in 14m10s.
         assertThat(refused.retryAfterSeconds()).contains(850L);
 
-        assertThat(LoginThrottle.accountKey("alice@example.com")).as("same account however typed").isEqualTo(alice);
+        assertThat(LoginThrottle.accountKey("alice-" + run + "@example.com")).as("same account however typed").isEqualTo(alice);
         clock.now = clock.now.plus(Duration.ofSeconds(850));
         assertThatCode(() -> throttle.check(alice, home)).doesNotThrowAnyException();
     }
@@ -78,32 +91,46 @@ class LoginThrottleTest {
         fail(alice, home, 3);
         assertThatCode(() -> throttle.check(alice, home)).as("3 since the reset, 7 from the address").doesNotThrowAnyException();
 
-        String bob = LoginThrottle.accountKey("bob@example.com");
+        String bob = LoginThrottle.accountKey("bob-" + run + "@example.com");
         fail(bob, home, 1);
         assertThat(catchThrowableOfType(ApiException.class, () -> throttle.check(bob, home)))
                 .as("8 failures from one address, whichever accounts").isNotNull();
-        assertThatCode(() -> throttle.check(bob, LoginThrottle.addressKey("198.51.100.2"))).doesNotThrowAnyException();
+        assertThatCode(() -> throttle.check(bob, LoginThrottle.addressKey("198.51.100.2/" + run))).doesNotThrowAnyException();
     }
 
     @Test
     void guessingManyAccountsFromOneAddressIsLimitedToo() {
         for (int i = 0; i < 8; i++) {
-            fail(LoginThrottle.accountKey("user" + i + "@example.com"), home, 1);
+            fail(LoginThrottle.accountKey("user" + i + "-" + run + "@example.com"), home, 1);
         }
 
         ApiException refused = catchThrowableOfType(ApiException.class,
-                () -> throttle.check(LoginThrottle.accountKey("someone-new@example.com"), home));
+                () -> throttle.check(LoginThrottle.accountKey("someone-new-" + run + "@example.com"), home));
         assertThat(refused.getCode()).isEqualTo("TOO_MANY_ATTEMPTS");
     }
 
     @Test
-    void expiredCountsAreForgotten() {
+    void expiredCountsAreDeletedAndKeysAreStoredHashed() {
         fail(alice, home, 3);
-        assertThat(throttle.trackedKeys()).isEqualTo(2);
+        assertThat(throttle.failuresOf(alice)).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM login_failures WHERE throttle_key LIKE '%alice%'",
+                Integer.class)).as("no readable emails").isZero();
 
         clock.now = clock.now.plus(Duration.ofMinutes(16));
         throttle.evictExpired();
 
-        assertThat(throttle.trackedKeys()).isZero();
+        assertThat(throttle.failuresOf(alice)).isZero();
+        assertThat(throttle.failuresOf(home)).isZero();
+    }
+
+    @Test
+    void countsAreSharedByEveryInstance() {
+        LoginThrottle otherInstance = new LoginThrottle(new LoginThrottleProperties(5, 8, Duration.ofMinutes(15)), clock,
+                jdbcTemplate);
+        fail(alice, home, 3);
+        otherInstance.recordFailure(alice, home);
+        otherInstance.recordFailure(alice, home);
+
+        assertThat(catchThrowableOfType(ApiException.class, () -> throttle.check(alice, home))).isNotNull();
     }
 }
