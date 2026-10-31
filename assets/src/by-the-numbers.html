@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Medfold by the numbers</title>
+<!-- Filled by assets/src/render.cjs from assets/charts/stats.json and tests/performance/results.json. -->
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif; color: #0f172a; background: #f8fafc; padding: 36px 40px 30px; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  h1 { font-size: 26px; letter-spacing: -0.01em; }
+  .measured { color: #64748b; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 22px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 20px 22px; position: relative; overflow: hidden; }
+  .card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--c); }
+  .value { font-size: 40px; font-weight: 750; letter-spacing: -0.03em; color: var(--c); }
+  .value small { font-size: 20px; font-weight: 600; }
+  .what { font-size: 16px; font-weight: 600; margin-top: 2px; }
+  .detail { font-size: 13px; color: #64748b; margin-top: 6px; line-height: 1.35; }
+  .stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .tech { background: #fff; border: 1px solid #e2e8f0; border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; color: #334155; }
+  .tech b { color: #1f726b; }
+</style>
+</head>
+<body>
+  <div class="head"><h1>Medfold by the numbers</h1><p class="measured" id="measured"></p></div>
+  <div class="grid" id="grid"></div>
+  <div class="stack">
+    <span class="tech"><b>Java 21</b> · Spring Boot</span><span class="tech"><b>React 19</b> · TypeScript</span>
+    <span class="tech"><b>Python</b> · FastAPI</span><span class="tech"><b>PostgreSQL 16</b></span>
+    <span class="tech"><b>Tesseract</b> OCR</span><span class="tech"><b>LLM</b> structured extraction</span>
+    <span class="tech"><b>JWT</b> + rotating refresh tokens</span><span class="tech"><b>Docker</b> Compose · Caddy HTTPS</span>
+    <span class="tech"><b>CI/CD</b> GitHub Actions</span><span class="tech"><b>k6</b> load testing</span>
+  </div>
+<script>
+  window.fill = (s) => {
+    const cards = [
+      ['#1f726b', s.tests, '', 'automated tests', `${s.backend} backend · ${s.frontend} frontend · ${s.ai} AI service, 0 failing`],
+      ['#0284c7', s.minLines + '–' + s.maxLines, '%', 'line coverage', 'Every service; JaCoCo, V8 and coverage.py reports in CI'],
+      ['#7c3aed', s.endpoints, '', 'REST endpoints', `${s.backendEndpoints} public API + ${s.aiEndpoints} internal AI service`],
+      ['#d97706', s.p95, ' ms', 'p95 read latency', '20 concurrent users, k6, real Docker stack'],
+      ['#1f726b', s.backendEndpoints + '/' + s.backendEndpoints, '', 'routes attacked for privacy', 'The isolation test tries every route as another user'],
+      ['#0284c7', s.tables, '', 'database tables', `${s.migrations} Flyway migrations; one database for data, queue and search`],
+      ['#7c3aed', s.adrs, '', 'decision records', 'Why Spring Boot, why PostgreSQL, why OCR before AI, …'],
+      ['#d97706', s.ciJobs, '', 'CI jobs per push', 'Backend, AI service, frontend, deployment config, end-to-end'],
+    ]
+    document.getElementById('grid').innerHTML = cards.map(([c, v, unit, what, detail]) =>
+      `<div class="card" style="--c:${c}"><div class="value">${v}<small>${unit}</small></div><div class="what">${what}</div><div class="detail">${detail}</div></div>`).join('')
+    document.getElementById('measured').textContent = `Measured ${s.measuredOn} · scripts/verify-claims.sh`
+  }
+</script>
+</body>
+</html>

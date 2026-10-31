@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Medfold request flow</title>
+<!-- Animation frames are drawn by draw(t) and captured by assets/src/render.cjs into request-flow.gif. -->
+<style>
+  * { margin: 0; }
+  body { width: 1200px; height: 600px; background: #f8fafc; font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif; }
+  svg text { font-family: inherit; }
+</style>
+</head>
+<body>
+<svg id="s" width="1200" height="600" viewBox="0 0 1200 600"></svg>
+<script>
+const nodes = {
+  react:  { x: 100, y: 250, w: 150, h: 96, title: 'React app', sub: 'Your browser', color: '#2a8c84' },
+  spring: { x: 430, y: 250, w: 190, h: 96, title: 'Spring Boot', sub: 'API + worker', color: '#1f726b' },
+  db:     { x: 430, y: 470, w: 190, h: 80, title: 'PostgreSQL', sub: 'Records + job queue', color: '#0f172a' },
+  fast:   { x: 760, y: 250, w: 180, h: 96, title: 'FastAPI', sub: 'AI service', color: '#6d28d9' },
+  ocr:    { x: 1050, y: 150, w: 170, h: 80, title: 'OCR', sub: 'Text layer · Tesseract', color: '#7c3aed' },
+  llm:    { x: 1050, y: 370, w: 170, h: 80, title: 'LLM', sub: 'Text → strict JSON', color: '#7c3aed' },
+}
+// Each step: a dot travels from → to, with a caption. Durations in seconds.
+const steps = [
+  { from: 'react', to: 'spring', label: 'POST /documents', caption: '1  You upload a lab report (PDF or photo)' },
+  { from: 'spring', to: 'db', label: 'INSERT document + job', caption: '2  File checked by its bytes; the document and its job are saved in one transaction' },
+  { from: 'spring', to: 'react', label: '201 · ~16 ms', caption: '3  The upload returns at once; processing happens in the background' },
+  { from: 'db', to: 'spring', label: 'FOR UPDATE SKIP LOCKED', caption: '4  A worker claims the job; no other worker can take the same one' },
+  { from: 'spring', to: 'fast', label: '/v1/ocr', caption: '5  The AI service reads every page…' },
+  { from: 'fast', to: 'ocr', label: 'text layer or OCR', caption: '6  …exact text from digital PDFs, Tesseract OCR for scans and photos' },
+  { from: 'spring', to: 'fast', label: '/v1/extract', caption: '7  Page text (never images) goes to the language model' },
+  { from: 'fast', to: 'llm', label: 'schema-bound JSON', caption: '8  It copies dates, tests, values and medicines into a strict schema: no diagnosis field' },
+  { from: 'fast', to: 'spring', label: 'validated result', caption: '9  The backend compares each value with the range printed on that report' },
+  { from: 'spring', to: 'db', label: 'save results · READY', caption: '10  Results are saved; corrections you made earlier are kept' },
+  { from: 'spring', to: 'react', label: 'fresh results', caption: '11  Your timeline, trends and search update' },
+]
+const STEP = 1.6, HOLD_END = 1.4
+window.duration = steps.length * STEP + HOLD_END
+
+const edges = [['react', 'spring'], ['spring', 'db'], ['spring', 'fast'], ['fast', 'ocr'], ['fast', 'llm']]
+const center = (n) => ({ x: nodes[n].x, y: nodes[n].y })
+const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2)
+
+function border(from, to) {
+  // Point where the segment from the centre of `from` towards `to` leaves the box.
+  const a = center(from), b = center(to), n = nodes[from]
+  const dx = b.x - a.x, dy = b.y - a.y
+  const sx = dx === 0 ? Infinity : (n.w / 2) / Math.abs(dx), sy = dy === 0 ? Infinity : (n.h / 2) / Math.abs(dy)
+  const k = Math.min(sx, sy)
+  return { x: a.x + dx * k, y: a.y + dy * k }
+}
+
+function draw(t) {
+  const i = Math.min(Math.floor(t / STEP), steps.length - 1)
+  const u = Math.min((t - i * STEP) / (STEP * 0.7), 1)
+  const step = t >= steps.length * STEP ? null : steps[i]
+  const active = new Set(step ? [step.from, step.to] : ['react'])
+  let out = ''
+  out += `<text x="40" y="52" font-size="26" font-weight="700" fill="#0f172a">What happens when you upload a report</text>`
+  out += `<text x="40" y="80" font-size="15" fill="#64748b">Medfold request flow · React → Spring Boot → PostgreSQL → FastAPI → OCR → LLM</text>`
+  for (const [a, b] of edges) {
+    const p = border(a, b), q = border(b, a)
+    const on = step && ((step.from === a && step.to === b) || (step.from === b && step.to === a))
+    out += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${on ? '#2a8c84' : '#cbd5e1'}" stroke-width="${on ? 3 : 2}" stroke-dasharray="${on ? '0' : '6 6'}"/>`
+  }
+  for (const [key, n] of Object.entries(nodes)) {
+    const on = active.has(key)
+    out += `<g opacity="${on ? 1 : 0.55}">
+      <rect x="${n.x - n.w / 2}" y="${n.y - n.h / 2}" width="${n.w}" height="${n.h}" rx="16" fill="${on ? n.color : '#fff'}" stroke="${n.color}" stroke-width="2"/>
+      <text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-size="19" font-weight="700" fill="${on ? '#fff' : n.color}">${n.title}</text>
+      <text x="${n.x}" y="${n.y + 20}" text-anchor="middle" font-size="13" fill="${on ? 'rgba(255,255,255,0.85)' : '#64748b'}">${n.sub}</text>
+    </g>`
+  }
+  if (step) {
+    const p = border(step.from, step.to), q = border(step.to, step.from)
+    const e = ease(u)
+    const x = p.x + (q.x - p.x) * e, y = p.y + (q.y - p.y) * e
+    // Labels: beside vertical edges, above horizontal ones, outside the angle of diagonal ones.
+    const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2
+    const vertical = Math.abs(q.x - p.x) < 1, flat = Math.abs(q.y - p.y) < 1
+    const [lx, ly, anchor] = vertical ? [mx + 14, my, 'start'] : flat ? [mx, my - 16, 'middle']
+      : [mx - 10, my + (Math.min(p.y, q.y) < 250 ? -14 : 26), 'end']
+    out += `<text x="${lx}" y="${ly}" text-anchor="${anchor}" font-size="13" font-weight="600" fill="#1f726b">${step.label}</text>`
+    out += `<circle cx="${x}" cy="${y}" r="13" fill="#2a8c84" opacity="0.25"/><circle cx="${x}" cy="${y}" r="7" fill="#2a8c84"/>`
+  }
+  const caption = step ? step.caption : 'Done: paper to a searchable, trackable record in about 2 s (p95, offline reader)'
+  out += `<rect x="40" y="532" width="1120" height="46" rx="12" fill="#0f172a"/>`
+  out += `<text x="60" y="562" font-size="17" font-weight="600" fill="#fff">${caption}</text>`
+  const progress = Math.min(t / (steps.length * STEP), 1)
+  out += `<rect x="40" y="580" width="${1120 * progress}" height="4" rx="2" fill="#2a8c84"/>`
+  document.getElementById('s').innerHTML = out
+}
+window.draw = draw
+draw(0)
+</script>
+</body>
+</html>
