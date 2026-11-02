@@ -1,6 +1,6 @@
 # ADR-003: Substring search in PostgreSQL, no search engine
 
-**Status:** Accepted
+**Status:** Accepted, amended by [ADR-011](ADR-011-typo-tolerant-search.md) (similar spellings and ranking)
 
 ## Context
 

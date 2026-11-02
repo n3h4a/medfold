@@ -3,6 +3,15 @@
 All notable changes to Medfold. Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Typo-tolerant, ranked search** ([#3](https://github.com/n3h4a/medfold/issues/3),
+  [ADR-011](docs/03-design/adr/ADR-011-typo-tolerant-search.md)): misspellings and OCR errors
+  ("haemoglobn", "platlet") find the document, marked "Similar spelling" with the matched word
+  highlighted; exact matches rank first. Migration V8 adds `pg_trgm` and GIN trigram indexes;
+  search results gain `highlights` and `exact`.
+
 ## [1.1.0] - 2026-10-31 - Polish and proof
 
 ### Added
@@ -84,6 +93,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Authentication: register and login with BCrypt, 15-minute JWT access tokens, rotating refresh
   tokens in an HttpOnly cookie with reuse detection, protected routes and automatic refresh.
 
+[Unreleased]: https://github.com/n3h4a/medfold/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/n3h4a/medfold/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/n3h4a/medfold/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/n3h4a/medfold/compare/v0.1.0...v0.5.0

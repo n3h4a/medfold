@@ -22,7 +22,7 @@ another system is done with a PostgreSQL feature:
 | Records and ownership | — | Tables with `user_id` on every row, foreign keys with `ON DELETE CASCADE` | Deleting an account is one transaction |
 | Background jobs | RabbitMQ / SQS | `processing_jobs` + `FOR UPDATE SKIP LOCKED` | The document and its job are saved in the same transaction; no lost or orphaned jobs |
 | One active job per document | Application locks | Partial unique index `WHERE status IN ('PENDING','RUNNING')` | The database refuses a duplicate even under a race |
-| Search | Elasticsearch | `ILIKE` over titles, page text, test and medicine names | Tens of milliseconds at one person's scale; substring matching finds "metfor" |
+| Search | Elasticsearch | `ILIKE` plus `pg_trgm` similarity over titles, page text, test and medicine names | Milliseconds at one person's scale; finds "metfor" and "haemoglobn" ([ADR-011](ADR-011-typo-tolerant-search.md)) |
 | Login throttling | Redis | `login_failures` rows, hashed keys, swept every 5 minutes | Shared by every backend instance; survives restarts |
 | Data rules | Application code | `CHECK` constraints on statuses and types | Bad data can't be written even by a buggy caller |
 
@@ -40,8 +40,8 @@ another system is done with a PostgreSQL feature:
 - **Good:** one thing to back up (`scripts/backup.sh`), one connection string, and every
   multi-step change is atomic. The load test (20 concurrent users) puts reads at a p95 of
   6–11 ms with this design ([performance-testing.md](../../05-testing/performance-testing.md)).
-- **Cost:** search is substring matching without ranking or stemming ("diabetic" won't find
-  "diabetes"), and sequential scans will slow down at hundreds of thousands of pages per user.
-  The fix is a `pg_trgm` GIN index first, a search engine much later.
+- **Cost:** search has no stemming or synonyms ("sugar" won't find "glucose"). Similar spellings
+  and ranking came later with `pg_trgm` inside the same database ([ADR-011](ADR-011-typo-tolerant-search.md));
+  a search engine is only worth it at a scale far beyond one person's records.
 - **Cost:** the queue is polled every 2 seconds, so a job can wait up to 2 s before starting.
   `LISTEN/NOTIFY` would remove that if it ever matters.

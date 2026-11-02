@@ -48,7 +48,7 @@ What Medfold does today, how complete each feature is, and which tests prove it.
 
 | Feature | Status | Notes | Proved by |
 |---|---|---|---|
-| Search any word in any document | 🟡 | Substring match with snippets; no typo tolerance or ranking | `SearchApiTest`, `DocumentsPage.test.tsx` |
+| Search any word in any document | ✅ | As typed or a similar spelling ("haemoglobn"), exact matches first, snippets; no synonyms | `SearchApiTest`, `DocumentsPage.test.tsx` |
 | Search from anywhere (Ctrl/⌘ K) | ✅ | Pages, tests and documents, keyboard driven | `CommandPalette.test.tsx` |
 | Visit summary for an appointment | ✅ | One printable page: latest results, ranges, previous values, medicines, sources | `VisitSummaryPage.test.tsx` |
 | Share with a doctor by link | 🔜 | | |

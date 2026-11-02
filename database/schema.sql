@@ -1,6 +1,9 @@
--- Medfold database schema, as created by the Flyway migrations V1–V7
+-- Medfold database schema, as created by the Flyway migrations V1–V8
 -- (backend/src/main/resources/db/migration). Reference only: Flyway is the source of truth.
 -- Regenerate: docker compose exec db pg_dump -U medfold -d medfold --schema-only --no-owner --no-privileges --exclude-table=flyway_schema_history
+
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 
 
 CREATE TABLE public.document_pages (
@@ -201,7 +204,11 @@ ALTER TABLE ONLY public.users
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
+CREATE INDEX idx_document_pages_text_trgm ON public.document_pages USING gin (text public.gin_trgm_ops);
+
 CREATE INDEX idx_document_terms_document ON public.document_terms USING btree (document_id, "position");
+
+CREATE INDEX idx_documents_title_trgm ON public.documents USING gin (title public.gin_trgm_ops);
 
 CREATE INDEX idx_documents_user_doc_type ON public.documents USING btree (user_id, doc_type);
 
@@ -213,6 +220,8 @@ CREATE INDEX idx_extraction_runs_document ON public.extraction_runs USING btree 
 
 CREATE INDEX idx_lab_results_document ON public.lab_results USING btree (document_id, "position");
 
+CREATE INDEX idx_lab_results_test_name_trgm ON public.lab_results USING gin (test_name public.gin_trgm_ops);
+
 CREATE INDEX idx_lab_results_user_test ON public.lab_results USING btree (user_id, test_key, observed_on);
 
 CREATE INDEX idx_login_failures_key_time ON public.login_failures USING btree (throttle_key, failed_at DESC);
@@ -220,6 +229,8 @@ CREATE INDEX idx_login_failures_key_time ON public.login_failures USING btree (t
 CREATE INDEX idx_login_failures_time ON public.login_failures USING btree (failed_at);
 
 CREATE INDEX idx_medications_document ON public.medications USING btree (document_id, "position");
+
+CREATE INDEX idx_medications_name_trgm ON public.medications USING gin (name public.gin_trgm_ops);
 
 CREATE INDEX idx_medications_user ON public.medications USING btree (user_id, prescribed_on DESC);
 

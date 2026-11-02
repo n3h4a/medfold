@@ -16,7 +16,7 @@ Set `BACKEND_URL` to proxy somewhere else. In Docker, the built app is served by
 ## Test and build
 
 ```bash
-npm test           # Vitest + Testing Library, 108 tests against a mocked API
+npm test           # Vitest + Testing Library, 109 tests against a mocked API
 npm run lint       # oxlint
 npm run build      # type-check (tsc -b) and production bundle in dist/
 ```

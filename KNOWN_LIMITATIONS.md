@@ -32,7 +32,8 @@ personal-scale v1.0; most have a planned next step in [ROADMAP.md](ROADMAP.md).
 
 - **Trends convert units only for a fixed list of tests** (glucose, cholesterol, creatinine, HbA1c
   and a few more); other unit changes are listed in the table but not plotted.
-- **Search is substring matching** without ranking or typo tolerance.
+- **Search tolerates misspellings but not synonyms:** "haemoglobn" finds Haemoglobin, but "sugar"
+  won't find "glucose", and swapped letters ("metfromin") aren't matched ([ADR-011](docs/03-design/adr/ADR-011-typo-tolerant-search.md)).
 - **The data export doesn't embed original files;** each can be downloaded from its document.
 - **No offline mode, no mobile app.** The web app works on phones but needs a connection.
 - **Accounts:** no email verification, password reset by email, multi-factor authentication or

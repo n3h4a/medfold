@@ -3,21 +3,21 @@
     "backendEndpoints": 25,
     "aiEndpoints": 4,
     "databaseTables": 10,
-    "migrations": 7,
-    "adrs": 10
+    "migrations": 8,
+    "adrs": 11
   },
   "tests": {
     "backend": {
-      "tests": 223,
+      "tests": 230,
       "failed": 0,
-      "lines": 93.3,
-      "branches": 82.6
+      "lines": 93.6,
+      "branches": 83.2
     },
     "frontend": {
-      "tests": 108,
+      "tests": 109,
       "failed": 0,
       "lines": 94.7,
-      "branches": 82.5
+      "branches": 82.6
     },
     "aiService": {
       "tests": 140,
@@ -27,6 +27,6 @@
       "branches": 95.2
     }
   },
-  "testsTotal": 471,
-  "measuredOn": "2026-10-31"
+  "testsTotal": 479,
+  "measuredOn": "2026-11-02"
 }

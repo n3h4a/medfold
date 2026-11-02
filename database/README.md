@@ -31,6 +31,7 @@ without a join. `login_failures` stands alone: it is keyed by hashed email or cl
 | `documents (user_id, doc_date DESC NULLS LAST, created_at DESC)` | The timeline, the app's main screen |
 | `documents (user_id, sha256)` unique | Duplicate upload detection |
 | `documents (user_id, status)`, `(user_id, doc_type)` | Filtering by state and type |
+| GIN trigram on `documents.title`, `document_pages.text`, `lab_results.test_name`, `medications.name` | Similar-spelling search (`pg_trgm`, V8) |
 | `lab_results (user_id, test_key, observed_on)` | Trends: one test across all reports |
 | `lab_results (document_id, position)`, same on `medications`, `document_terms` | A document's results in printed order |
 | `medications (user_id, prescribed_on DESC)` | Medicines list |
@@ -40,8 +41,9 @@ without a join. `login_failures` stands alone: it is keyed by hashed email or cl
 | `login_failures (throttle_key, failed_at DESC)`, `(failed_at)` | Counting recent failures, deleting expired ones |
 | `extraction_runs (document_id, created_at DESC)` | Latest run of a document |
 
-Search uses `ILIKE` substring matching without an index; see
-[ADR-003](../docs/03-design/adr/ADR-003-search.md) for why that is the right trade-off at this scale.
+Search uses `ILIKE` for words as typed and `pg_trgm` word similarity for misspellings, with GIN
+trigram indexes on titles, page text, test and medicine names; see
+[ADR-003](../docs/03-design/adr/ADR-003-search.md) and [ADR-011](../docs/03-design/adr/ADR-011-typo-tolerant-search.md).
 
 ## Migrations
 
@@ -54,6 +56,7 @@ Search uses `ILIKE` substring matching without an index; see
 | V5 `processing_jobs_user` | `processing_jobs.user_id`, so the worker reads documents through owner-scoped queries |
 | V6 `login_failures` | Wrong-password attempts for throttling, shared by all backend instances |
 | V7 `medications_extracted_name` | Name as first read, so reprocessing recognises renamed corrections |
+| V8 `search_trigram_indexes` | `pg_trgm` extension and GIN trigram indexes for typo-tolerant search |
 
 **Rules for new migrations:** never edit an applied migration; add `V<n>__<what>.sql`. When adding
 a `NOT NULL` column to a table that may have rows, add it nullable, backfill, then set

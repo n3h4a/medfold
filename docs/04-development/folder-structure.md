@@ -23,7 +23,7 @@ medfold/
 │   │   └── config/             security, scheduling, clock
 │   ├── src/main/resources/
 │   │   ├── application.yml
-│   │   └── db/migration/       Flyway V1–V7
+│   │   └── db/migration/       Flyway V1–V8
 │   ├── src/test/java/          JUnit + Testcontainers, mirrors main
 │   └── pom.xml, Dockerfile, README.md
 │
