@@ -259,6 +259,8 @@ describe('uploading', () => {
             document: doc({ id: 'doc-9', status: 'READY', title: 'Complete Blood Count', docType: 'LAB_REPORT' }),
             snippet: '…Haemoglobin 12.1 g/dL…',
             pageNumber: 2,
+            highlights: ['Haemoglobin'],
+            exact: true,
           },
         ]),
     })
@@ -278,6 +280,29 @@ describe('uploading', () => {
 
     await user.clear(box)
     expect(await screen.findByText('Lipid profile')).toBeInTheDocument()
+  })
+
+  it('marks results found by a similar spelling and highlights the word that matched', async () => {
+    mockApi({
+      'POST /auth/refresh': () => json(200, authResponse()),
+      'GET /search': () =>
+        json(200, [
+          {
+            document: doc({ id: 'doc-9', status: 'READY', title: 'Complete Blood Count' }),
+            snippet: 'Platelet count 2.5 lakh/cumm',
+            pageNumber: 1,
+            highlights: ['Platelet'],
+            exact: false,
+          },
+        ]),
+    })
+    const user = userEvent.setup()
+    renderApp('/documents')
+    await user.type(await screen.findByRole('searchbox', { name: 'Search your documents' }), 'platlet')
+
+    const row = (await screen.findByRole('link', { name: 'Complete Blood Count' })).closest('li') as HTMLElement
+    expect(within(row).getByText('Similar spelling')).toBeInTheDocument()
+    expect(within(row).getByText('Platelet', { selector: 'mark' })).toBeInTheDocument()
   })
 
   it('says when nothing matches', async () => {

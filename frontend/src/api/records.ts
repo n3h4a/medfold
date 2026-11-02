@@ -24,11 +24,18 @@ export interface LabTrend {
   results: LabResult[]
 }
 
-/** A document matching every search word; snippet is page text around the first word, if the text matched. */
+/**
+ * A document matching every search word, as typed or as a similar spelling. snippet is page text around
+ * the first word, if the text matched.
+ */
 export interface SearchResult {
   document: MedicalDocument
   snippet: string | null
   pageNumber: number | null
+  /** The text in the snippet that matched each word, as typed or as a similar spelling. */
+  highlights: string[]
+  /** False when at least one word only matched a similar spelling ("haemoglobn" → "Haemoglobin"). */
+  exact: boolean
 }
 
 export const recordsApi = {

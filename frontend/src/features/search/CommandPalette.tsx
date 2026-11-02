@@ -69,13 +69,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           }))
       : []
     const documents = query
-      ? (search.data ?? []).slice(0, 8).map<Option>(({ document, snippet }) => ({
+      ? (search.data ?? []).slice(0, 8).map<Option>(({ document, snippet, highlights }) => ({
           key: `doc:${document.id}`,
           group: 'Documents',
           to: `/documents/${document.id}`,
           label: displayTitle(document),
           detail: snippet ? (
-            <Highlight text={snippet} words={words} />
+            <Highlight text={snippet} words={[...words, ...highlights]} />
           ) : (
             [document.docType ? typeLabel[document.docType] : null, document.docDate ? formatDate(document.docDate) : null]
               .filter(Boolean)

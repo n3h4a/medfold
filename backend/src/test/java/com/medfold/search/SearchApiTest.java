@@ -1,6 +1,7 @@
 package com.medfold.search;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -138,6 +139,84 @@ class SearchApiTest {
 
         assertThat(ids(search("haemoglobin"))).containsExactly(cbc.toString());
         assertThat(ids(search("blood count"))).containsExactly(cbc.toString());
+    }
+
+    @Test
+    void misspellingsFindTheDocumentAndSayWhatMatched() throws Exception {
+        search("haemoglobn")
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].document.id").value(cbc.toString()))
+                .andExpect(jsonPath("$[0].exact").value(false))
+                .andExpect(jsonPath("$[0].highlights[0]").value("Haemoglobin"))
+                .andExpect(jsonPath("$[0].pageNumber").value(2))
+                .andExpect(jsonPath("$[0].snippet").value(containsString("Haemoglobin 12.1 g/dL")));
+        assertThat(ids(search("platlet"))).containsExactly(cbc.toString());
+        assertThat(ids(search("metformn"))).as("medicine names").containsExactly(prescription.toString());
+        assertThat(ids(search("diagnostcs"))).as("document details").containsExactly(cbc.toString());
+        search("haemoglobin").andExpect(jsonPath("$[0].exact").value(true)).andExpect(jsonPath("$[0].highlights[0]").value("Haemoglobin"));
+    }
+
+    @Test
+    void exactMatchesRankAboveSimilarSpellingsEvenWhenOlder() throws Exception {
+        UUID newerTypo = upload(token, "typo.pdf");
+        jdbcTemplate.update("UPDATE documents SET title = 'Old scan', doc_date = '2026-09-01' WHERE id = ?", newerTypo);
+        pageRepository.saveAll(List.of(new DocumentPage(newerTypo, user.getId(), 1, "Haemoglobn 11.0 g/dL (OCR misread)",
+                TextSource.TESSERACT, 0.7f, 30)));
+
+        search("haemoglobin")
+                .andExpect(jsonPath("$[0].document.id").value(cbc.toString()))
+                .andExpect(jsonPath("$[0].exact").value(true))
+                .andExpect(jsonPath("$[1].document.id").value(newerTypo.toString()))
+                .andExpect(jsonPath("$[1].exact").value(false))
+                .andExpect(jsonPath("$[1].highlights[0]").value("Haemoglobn"));
+    }
+
+    @Test
+    void similarSpellingsMatchWholeWordsOnly() throws Exception {
+        UUID footer = upload(token, "footer.pdf");
+        pageRepository.saveAll(List.of(new DocumentPage(footer, user.getId(), 1,
+                "Synthetic demo document, invented for Medfold. Type 2 diabetes mellitus.", TextSource.PDF_TEXT, null, 70)));
+
+        assertThat(ids(search("metfor"))).as("not across \"for Medfold\"").containsExactly(prescription.toString());
+        // Strict similarity 0.50: not above pg_trgm's default threshold (0.5), so this needs Medfold's own (0.45).
+        assertThat(ids(search("diabetic"))).containsExactly(footer.toString());
+    }
+
+    @Test
+    void shortAndUnrelatedWordsOnlyMatchAsTyped() throws Exception {
+        assertThat(ids(search("cty"))).as("three letters: no similar spellings").isEmpty();
+        assertThat(ids(search("zebra"))).isEmpty();
+        assertThat(ids(search("thyroid"))).isEmpty();
+        assertThat(ids(search("haemoglobn mehta"))).as("every word must still match the same document").isEmpty();
+    }
+
+    @Test
+    void similarSpellingsNeverReachAnotherUsersDocuments() throws Exception {
+        User other = newUser();
+        String otherToken = jwtService.issueAccessToken(other).value();
+        UUID theirs = upload(otherToken, "theirs.pdf");
+        pageRepository.saveAll(List.of(new DocumentPage(theirs, other.getId(), 1, "Platelet count 1.9 Thyroxine", TextSource.PDF_TEXT, null, 30)));
+
+        assertThat(ids(search("platlet"))).containsExactly(cbc.toString());
+        assertThat(ids(search("thyroxin"))).isEmpty();
+    }
+
+    @Test
+    void everyWordIsHighlightedInTheSnippet() throws Exception {
+        search("haemoglobn platelet").andExpect(jsonPath("$[0].highlights[0]").value("Haemoglobin"))
+                .andExpect(jsonPath("$[0].highlights[1]").value("Platelet"));
+        assertThat(SearchService.highlights("Total Cholesterol 181 mg/dL", List.of("total", "cholestrol", "zebra", "mg")))
+                .containsExactly("Total", "Cholesterol", "mg");
+    }
+
+    @Test
+    void snippetsPointAtTheClosestWord() {
+        SearchService.Snippet s = SearchService.snippet("Sample: Total Cholesterol 181 mg/dL", "cholestrol");
+        assertThat(s.highlight()).isEqualTo("Cholesterol");
+        assertThat(s.text()).isEqualTo("Sample: Total Cholesterol 181 mg/dL");
+        assertThat(SearchService.snippet("Fasting glucose 92", "fasting").highlight()).isEqualTo("Fasting");
+        assertThat(SearchService.similarity("platelet", "platelet")).isEqualTo(1.0);
+        assertThat(SearchService.similarity("platelet", "zebra")).isZero();
     }
 
     @Test
