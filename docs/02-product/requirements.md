@@ -42,7 +42,7 @@ the [project overview](../00-project/overview.md); how each requirement is verif
 | N6 | Secure by default | HTTPS, CSP, hashed secrets, rate limiting | [Security design](../03-design/security-design.md) |
 | N7 | Accessible | Keyboard and screen-reader friendly controls; text alternatives for charts | Labels and roles tested in UI tests |
 | N8 | One-command setup | `docker compose up` | Verified in CI |
-| N9 | Test coverage | > 85% of lines per service | 93.3–97.1% |
+| N9 | Test coverage | > 85% of lines per service | 93.6–97.1% |
 
 ## Out of scope for v1.0
 

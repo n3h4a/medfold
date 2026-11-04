@@ -7,8 +7,8 @@
 | **Version** | 1.1.0 (see [CHANGELOG](CHANGELOG.md)) |
 | **Phase** | Feature-complete for a personal health record; hardening and sharing next |
 | **Build** | CI green on `main`: backend, AI service, frontend, deployment config, end-to-end on the Docker stack |
-| **Tests** | 471 (223 backend · 108 frontend · 140 AI service), 0 failing; reproduce with `scripts/verify-claims.sh` |
-| **Coverage** | Lines 93.3% backend · 94.7% frontend · 97.1% AI service |
+| **Tests** | 479 (230 backend · 109 frontend · 140 AI service), 0 failing; reproduce with `scripts/verify-claims.sh` |
+| **Coverage** | Lines 93.6% backend · 94.7% frontend · 97.1% AI service |
 | **Security check** | 22/22 external checks pass (`scripts/security-check.sh`); no known vulnerable dependencies (npm, pip) |
 | **Try it** | `docker compose up` locally, or a GitHub Codespace ([how](docs/06-deployment/deployment-guide.md#a-public-demo)) |
 
@@ -27,7 +27,7 @@ Feature by feature, with the tests behind each: [FEATURE_MATRIX.md](FEATURE_MATR
 ## In progress
 
 Nothing half-built is on `main`. The next milestone is **v1.2: trust and recovery**: password reset,
-two-factor login, typo-tolerant search, sex- and age-specific ranges.
+two-factor login and sex- and age-specific ranges. Typo-tolerant search (#3) is done.
 
 ## Remaining before calling it "production for other people"
 
@@ -46,7 +46,6 @@ These matter once people other than me rely on it:
 |---|---|---|
 | OCR text isn't kept when the extraction call fails | Such a document isn't searchable until a retry succeeds | [ADR-010](docs/03-design/adr/ADR-010-ocr-before-ai.md), roadmap |
 | Sex- and age-specific ranges aren't parsed | Those results show no comparison rather than a possibly wrong one | [KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md) |
-| Search has no typo tolerance or ranking | "diabetic" won't find "diabetes" | Roadmap v1.2 → `pg_trgm` |
 | Files live on one server's disk | Can't scale out beyond one host yet | Roadmap: object storage |
 | The dark theme flashes light for a moment on first load | Cosmetic | The theme is applied after the app starts, because the CSP forbids inline scripts |
 

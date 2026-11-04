@@ -17,7 +17,7 @@ Configuration comes from environment variables or the repository-root `.env`; se
 ## Test
 
 ```bash
-./mvnw test        # 223 tests; Testcontainers starts a throwaway PostgreSQL, so Docker must run
+./mvnw test        # 230 tests; Testcontainers starts a throwaway PostgreSQL, so Docker must run
 ```
 
 Highlights: `UserIsolationTest` (every route classified, every owned route attacked by a second
@@ -41,7 +41,7 @@ src/main/java/com/medfold/
 ├── health/       /api/v1/health
 ├── common/       error format, exception handling, paging
 └── config/       security, scheduling, clock
-src/main/resources/db/migration/   Flyway migrations V1–V7 (see database/README.md)
+src/main/resources/db/migration/   Flyway migrations V1–V8 (see database/README.md)
 ```
 
 **Conventions:** repositories for user data expose only owner-scoped methods; services take the

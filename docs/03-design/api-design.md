@@ -58,7 +58,7 @@ unclassified route and attacks every *owned* route as a second user.
 | GET | `/labs` | collection | Every test you have, with its latest value |
 | GET | `/labs/{testKey}` | collection | One test across reports, oldest first |
 | GET | `/medications` | collection | All medicines, most recently prescribed first |
-| GET | `/search?q=` | collection | Documents containing every word, with snippets (≤ 50) |
+| GET | `/search?q=` | collection | Documents containing every word as typed or as a similar spelling, best match first, with snippets (≤ 50) |
 | GET | `/account/export` | self | All your data as a JSON download |
 | DELETE | `/account` | self | Delete the account and everything in it; body `{"password": …}` (204) |
 

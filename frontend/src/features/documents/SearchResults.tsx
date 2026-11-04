@@ -36,7 +36,7 @@ export function SearchResults({ query }: { query: string }) {
         {data.length === 50 && ' (showing the first 50)'}
       </h2>
       <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-sm">
-        {data.map(({ document, snippet, pageNumber }) => (
+        {data.map(({ document, snippet, pageNumber, highlights, exact }) => (
           <li key={document.id} className="relative px-4 py-3 hover:bg-slate-50">
             <Link
               to={`/documents/${document.id}`}
@@ -48,11 +48,14 @@ export function SearchResults({ query }: { query: string }) {
               {[document.docType ? typeLabel[document.docType] : null, document.docDate ? formatDate(document.docDate) : null]
                 .filter(Boolean)
                 .join(' · ')}
+              {!exact && (
+                <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">Similar spelling</span>
+              )}
             </p>
             {snippet && (
               <p className="mt-1 text-sm text-slate-600">
                 {pageNumber && <span className="text-slate-400">Page {pageNumber}: </span>}
-                <Highlight text={snippet} words={query.split(/\s+/)} />
+                <Highlight text={snippet} words={[...query.split(/\s+/), ...highlights]} />
               </p>
             )}
           </li>

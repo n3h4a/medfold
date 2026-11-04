@@ -7,7 +7,6 @@ Where Medfold could go next, in rough priority order. Open items are tracked as
 
 - Password reset and email verification.
 - Optional multi-factor authentication (TOTP).
-- Typo-tolerant, ranked search with `pg_trgm`.
 - Sex- and age-specific reference ranges.
 
 ## v1.3: reading more documents

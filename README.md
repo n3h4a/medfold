@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/n3h4a/medfold/actions/workflows/ci.yml"><img src="https://github.com/n3h4a/medfold/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="docs/05-testing/test-plan.md#coverage"><img src="https://img.shields.io/badge/tests-471%20passing-brightgreen" alt="471 tests passing"></a>
+  <a href="docs/05-testing/test-plan.md#coverage"><img src="https://img.shields.io/badge/tests-479%20passing-brightgreen" alt="479 tests passing"></a>
   <a href="docs/05-testing/test-plan.md#coverage"><img src="https://img.shields.io/badge/line%20coverage-93--97%25-brightgreen" alt="Line coverage 93 to 97 percent"></a>
   <a href="docs/05-testing/code-audit.md"><img src="https://img.shields.io/badge/security%20checks-22%2F22-brightgreen" alt="22 of 22 security checks pass"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/charts/by-the-numbers.png" alt="By the numbers: 471 automated tests, 93 to 97 percent line coverage, 29 REST endpoints, under 12 ms p95 read latency, 25 of 25 routes attacked for privacy, 10 database tables, 10 decision records, 5 CI jobs per push" width="100%">
+  <img src="assets/charts/by-the-numbers.png" alt="By the numbers: 479 automated tests, 93 to 97 percent line coverage, 29 REST endpoints, under 12 ms p95 read latency, 25 of 25 routes attacked for privacy, 10 database tables, 11 decision records, 5 CI jobs per push" width="100%">
   <br><sub>Every number above is measured, not estimated: <code>scripts/verify-claims.sh</code> re-runs the suites and recounts them.</sub>
 </p>
 
@@ -125,13 +125,15 @@ Four rules came out of that, and every later decision follows them:
 | ![HbA1c over time with the printed range shaded](demo/screenshots/lab-trend.png) | ![Search palette finding tests and documents](demo/screenshots/search-palette.png) |
 
 <details>
-<summary>More screens: test results, medicines, dark mode, phone, login</summary>
+<summary>More screens: test results, medicines, dark mode, phone, login, typo-tolerant search</summary>
 
 | Every test, latest and previous value | Every medicine | Dark mode |
 |---|---|---|
 | ![Test results as cards](demo/screenshots/test-results.png) | ![Medicines as written](demo/screenshots/medicines.png) | ![Overview in dark mode](demo/screenshots/dark-mode.png) |
 | **On a phone** | **Trend on a phone** | **Log in** |
 | ![Overview on a phone](demo/screenshots/mobile-overview.png) | ![Trend on a phone](demo/screenshots/mobile-trend.png) | ![Login page](demo/screenshots/login.png) |
+| **Misspelled search still finds it** | | |
+| ![Search for "total cholestrol" finding every metabolic panel, marked as a similar spelling](demo/screenshots/search.png) | | |
 
 </details>
 
@@ -205,7 +207,7 @@ I turned down and what the choice costs.
 | Question | Answer |
 |---|---|
 | **Why Spring Boot?** ([ADR-008](docs/03-design/adr/ADR-008-why-spring-boot.md)) | The public API is where mistakes cost most. Spring gives tested JWT auth, precise transactions and repositories that can't load another user's data. The price: a heavier runtime than Node or Go. |
-| **Why PostgreSQL, and only PostgreSQL?** ([ADR-009](docs/03-design/adr/ADR-009-why-postgresql.md)) | One database also runs the job queue (`SKIP LOCKED`), search and login throttling, so an upload and its job are saved atomically and there's one thing to back up. Search is simple substring matching as a result. |
+| **Why PostgreSQL, and only PostgreSQL?** ([ADR-009](docs/03-design/adr/ADR-009-why-postgresql.md)) | One database also runs the job queue (`SKIP LOCKED`), search and login throttling, so an upload and its job are saved atomically and there's one thing to back up. Search stays inside PostgreSQL too: substring matching plus `pg_trgm` for misspellings ([ADR-011](docs/03-design/adr/ADR-011-typo-tolerant-search.md)). |
 | **Why OCR before AI?** ([ADR-010](docs/03-design/adr/ADR-010-ocr-before-ai.md)) | Digital PDFs already contain exact text, so there's nothing for a vision model to improve. The model reads stored text, which makes every value traceable and lets the app run offline. Handwriting reads poorly as a result. |
 | **How do you stop the AI giving medical advice?** ([ADR-007](docs/03-design/adr/ADR-007-ai-safety-boundary.md)) | Give it nowhere to put advice: the schema has no such field, the wording is checked, and "above range" is arithmetic in the backend. |
 | **Why two services?** ([ADR-005](docs/03-design/adr/ADR-005-service-split.md)) | Python has the best OCR and LLM tools, Java the strongest core. The AI service is stateless and can be replaced. |
@@ -281,8 +283,8 @@ Real mistakes, all fixed, each with a test that now guards it ([full bug log](do
 
 | | |
 |---|---|
-| **Tests** | 471: 223 backend (against a real PostgreSQL), 108 frontend, 140 AI service, plus an end-to-end CI job on the built Docker stack that OCRs a photographed prescription |
-| **Coverage** | Lines: backend 93.3%, frontend 94.7%, AI service 97.1% ([test plan](docs/05-testing/test-plan.md)) |
+| **Tests** | 479: 230 backend (against a real PostgreSQL), 109 frontend, 140 AI service, plus an end-to-end CI job on the built Docker stack that OCRs a photographed prescription |
+| **Coverage** | Lines: backend 93.6%, frontend 94.7%, AI service 97.1% ([test plan](docs/05-testing/test-plan.md)) |
 | **Reproducible** | `scripts/verify-claims.sh` re-runs every suite and recounts every number on this page |
 | **Privacy** | `UserIsolationTest` attacks all 25 routes as a second user; new routes fail the build until they're checked |
 | **Security** | `scripts/security-check.sh` attacks a running stack from outside: 22/22 pass; no known vulnerable dependencies ([code audit](docs/05-testing/code-audit.md)) |
@@ -313,7 +315,7 @@ All limitations: [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 **v1.1.0**: feature-complete for one person's records, CI green. Done, in progress, remaining
 and known issues: **[PROJECT_STATUS.md](PROJECT_STATUS.md)**.
 
-Next: password reset and two-factor login, typo-tolerant search, more OCR languages, a vision
+Next: password reset and two-factor login, more OCR languages, a vision
 model only for hard-to-read pages, sharing a read-only link with a doctor, FHIR export
 ([ROADMAP.md](ROADMAP.md), [issues](https://github.com/n3h4a/medfold/issues)).
 

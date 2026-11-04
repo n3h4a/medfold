@@ -12,7 +12,7 @@ describe('search palette', () => {
     mockApi({
       ...loggedIn,
       'GET /labs': () => json(200, [testSummary({ testName: 'Haemoglobin', testKey: 'haemoglobin' })]),
-      'GET /search': () => json(200, [{ document: documentFixture(), snippet: '…Haemoglobin 11.4 g/dL…', pageNumber: 1 }]),
+      'GET /search': () => json(200, [{ document: documentFixture(), snippet: '…Haemoglobin 11.4 g/dL…', pageNumber: 1, highlights: ['Haemoglobin'], exact: true }]),
     })
     const { router } = renderApp('/')
     const user = userEvent.setup()

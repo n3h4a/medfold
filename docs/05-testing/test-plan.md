@@ -23,12 +23,12 @@ tests, the language model in AI service tests).
 
 | Service | Tests | Lines | Branches | Report |
 |---|---|---|---|---|
-| Backend | 223 | 93.3% | 82.6% | `backend/target/site/jacoco/index.html` |
-| Frontend | 108 | 94.7% | 82.5% | `frontend/coverage/index.html` |
+| Backend | 230 | 93.6% | 83.2% | `backend/target/site/jacoco/index.html` |
+| Frontend | 109 | 94.7% | 82.6% | `frontend/coverage/index.html` |
 | AI service | 140 (7 need Tesseract) | 97.1% | 95.2% | `ai-service/htmlcov/index.html` |
-| **Total** | **471** | | | |
+| **Total** | **479** | | | |
 
-Measured 2026-10-31 with Tesseract installed, as in CI. Without Tesseract the 7 OCR tests are
+Measured 2026-11-02 with Tesseract installed, as in CI. Without Tesseract the 7 OCR tests are
 skipped and AI service line coverage drops to about 92%; an earlier version of this table quoted
 that lower figure by mistake. CI publishes the three HTML reports as artifacts on every run.
 

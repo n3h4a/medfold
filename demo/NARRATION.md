@@ -19,7 +19,7 @@ read it at a relaxed pace (about 2.5 words per second) and each line fits its sc
 | 0:56 | Prescription | "…and opens it." |
 | 0:59 | Visit summary | "Before an appointment, the visit summary puts the latest results, previous values and current medicines on one printable page." |
 | 1:07 | Dark mode | "There's a dark mode, and it all works on a phone." |
-| 1:10 | Log out | "Logging out revokes the session on the server. Medfold is Spring Boot, React, FastAPI and PostgreSQL, with 471 automated tests. The code is on GitHub." |
+| 1:10 | Log out | "Logging out revokes the session on the server. Medfold is Spring Boot, React, FastAPI and PostgreSQL, with over 470 automated tests. The code is on GitHub." |
 | 1:14 | End card | (silence, or "Thanks for watching.") |
 
 ## Adding your voice
